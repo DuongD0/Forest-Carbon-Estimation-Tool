@@ -5,6 +5,7 @@ from app.models.user import User, Role, Permission  # noqa
 # Import other models here as they are created
 from app.models.project import Project # noqa
 from app.models.forest import Forest # noqa
+from app.models.imagery import Imagery # noqa
 
 print("Base models imported for Alembic discovery.")
 
