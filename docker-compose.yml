@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgis/postgis:13-3.1
+    container_name: forest_carbon_db
+    environment:
+      POSTGRES_USER: forest_user
+      POSTGRES_PASSWORD: forest_password
+      POSTGRES_DB: forest_carbon_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U forest_user -d forest_carbon_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:6.2-alpine
+    container_name: forest_carbon_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: forest_carbon_backend
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload # Assuming FastAPI and uvicorn
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://forest_user:forest_password@db:5432/forest_carbon_db
+      REDIS_URL: redis://redis:6379/0
+      SECRET_KEY: "replace_with_a_strong_secret_key"
+      # Add other environment variables as needed
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: forest_carbon_frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # Prevent host node_modules from overwriting container's
+    ports:
+      - "3000:3000"
+    environment:
+      REACT_APP_API_URL: http://localhost:8000/api/v1 # Adjust if needed
+      # Add other environment variables as needed
+    depends_on:
+      - backend
+    stdin_open: true # Required for Create React App interactive mode
+    tty: true # Required for Create React App interactive mode
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
+
