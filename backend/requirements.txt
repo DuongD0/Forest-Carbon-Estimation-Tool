@@ -1,0 +1,41 @@
+# Web Framework
+fastapi
+uvicorn[standard]
+
+# Database
+sqlalchemy
+psycopg2-binary # PostgreSQL driver
+geoalchemy2
+alembic # For database migrations
+
+# Geospatial Libraries
+# GDAL is installed via apt in Dockerfile
+rasterio
+geopandas
+shapely
+pyproj
+fiona
+
+# Image Processing
+opencv-python-headless
+numpy
+
+# Authentication & Security
+python-jose[cryptography]
+passlib[bcrypt]
+
+# Caching
+redis
+
+# Background Tasks (Optional, add if needed later)
+# celery[redis]
+
+# Configuration
+python-dotenv
+
+# API Client for testing
+httpx
+
+# Utilities
+email-validator # For Pydantic email validation
+
