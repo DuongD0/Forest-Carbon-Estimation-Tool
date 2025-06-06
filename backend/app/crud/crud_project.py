@@ -6,6 +6,7 @@ from geoalchemy2.functions import ST_AsGeoJSON
 from app.models.project import Project, ProjectStatus
 from app.schemas.project import ProjectCreate, ProjectUpdate
 from app.models.user import User # For type hinting owner
+from app.crud.base import CRUDBase
 
 # Helper to convert geometry to GeoJSON if it exists
 def geometry_to_geojson(geometry):
@@ -88,4 +89,18 @@ def delete_project(db: Session, project_id: int) -> Optional[Project]:
     return db_project
 
 print("CRUD functions for Project defined.")
+
+class CRUDProject(CRUDBase[Project, ProjectCreate, ProjectUpdate]):
+    def get_multi_by_owner(
+        self, db: Session, *, owner_id: int, skip: int = 0, limit: int = 100
+    ) -> List[Project]:
+        return (
+            db.query(self.model)
+            .filter(Project.owner_id == owner_id)
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+
+project = CRUDProject(Project)
 

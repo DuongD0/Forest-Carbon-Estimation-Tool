@@ -21,7 +21,7 @@ if config.config_file_name is not None:
 import sys
 import os
 # Add the project root to the Python path
-sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), '..', '..')))
 from app.db.base import Base # Import Base from your application
 target_metadata = Base.metadata # Set target_metadata to your Base metadata
 

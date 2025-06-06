@@ -1,7 +1,8 @@
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional, Any
-from geoalchemy2.functions import ST_AsGeoJSON, ST_GeomFromGeoJSON
+from geoalchemy2.functions import ST_AsGeoJSON, ST_GeomFromGeoJSON, ST_SetSRID
 
+from app.crud.base import CRUDBase
 from app.models.forest import Forest, ForestTypeEnum
 from app.schemas.forest import ForestCreate, ForestUpdate
 
@@ -38,33 +39,28 @@ def get_forests_by_project(db: Session, project_id: int, skip: int = 0, limit: i
     ).filter(Forest.project_id == project_id).offset(skip).limit(limit)
     return query.all()
 
-def create_forest(db: Session, forest: ForestCreate) -> Forest:
-    geometry_wkt = None
-    if forest.geometry:
-        # Basic validation example (more robust needed)
-        if isinstance(forest.geometry, dict) and forest.geometry.get("type") == "MultiPolygon":
-             # Convert GeoJSON dict to WKT with SRID for storage
-             from shapely.geometry import shape
-             geom = shape(forest.geometry)
-             geometry_wkt = f'SRID=4326;{geom.wkt}' # Assuming input is WGS84 (SRID 4326)
+class CRUDForest(CRUDBase[Forest, ForestCreate, ForestUpdate]):
+    def create(self, db: Session, *, obj_in: ForestCreate) -> Forest:
+        # Convert GeoJSON to a geometry object before creating
+        if obj_in.geometry:
+            geometry_obj = ST_SetSRID(ST_GeomFromGeoJSON(str(obj_in.geometry)), 4326)
         else:
-             raise ValueError("Invalid GeoJSON format for geometry, expected MultiPolygon")
-    else:
-        raise ValueError("Geometry is required to create a forest")
+            geometry_obj = None
 
-    db_forest = Forest(
-        project_id=forest.project_id,
-        forest_name=forest.forest_name,
-        forest_type=forest.forest_type,
-        description=forest.description,
-        geometry=geometry_wkt, # Store as WKT with SRID
-        area_ha=forest.area_ha # Area might be calculated later
-    )
-    db.add(db_forest)
-    db.commit()
-    db.refresh(db_forest)
-    # Re-fetch with ST_AsGeoJSON to return GeoJSON
-    return get_forest(db, db_forest.forest_id)
+        db_obj = Forest(
+            project_id=obj_in.project_id,
+            forest_name=obj_in.forest_name,
+            forest_type=obj_in.forest_type,
+            description=obj_in.description,
+            geometry=geometry_obj,
+            area_ha=obj_in.area_ha,
+        )
+        db.add(db_obj)
+        db.commit()
+        db.refresh(db_obj)
+        return db_obj
+
+forest = CRUDForest(Forest)
 
 def update_forest(db: Session, db_forest: Forest, forest_in: ForestUpdate) -> Forest:
     update_data = forest_in.dict(exclude_unset=True)

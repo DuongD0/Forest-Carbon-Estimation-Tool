@@ -3,18 +3,18 @@ from sqlalchemy.orm import Session
 from typing import List, Any, Optional
 import shutil
 import os
+from datetime import datetime
+import logging
 
 from app import schemas, crud, models
-from app.db.session import get_db
-# Import dependency for authentication/authorization later
-# from app.api import deps
+from app.api import deps
+from app.processing.image_processor import ImageProcessor
 
-# Define a directory for uploads (consider making this configurable)
-UPLOAD_DIR = "/home/ubuntu/uploads/imagery"
-# Ensure upload directory exists
+UPLOAD_DIR = "backend/uploads/imagery"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 # Note: Imagery endpoints are typically nested under projects, e.g., /projects/{project_id}/imagery/
 # For simplicity here, we use a top-level /imagery/ endpoint, but nesting is recommended.
@@ -23,38 +23,32 @@ router = APIRouter()
 @router.post("/upload/", response_model=schemas.Imagery, status_code=status.HTTP_201_CREATED)
 def upload_imagery(
     *, 
-    db: Session = Depends(get_db),
+    db: Session = Depends(deps.get_db),
     project_id: int = Form(...),
-    source: models.ImagerySourceEnum = Form(models.ImagerySourceEnum.UPLOADED),
+    source: models.imagery.ImagerySourceEnum = Form(models.imagery.ImagerySourceEnum.UPLOADED),
     acquisition_date: datetime = Form(...),
     sensor_type: Optional[str] = Form(None),
     resolution_m: Optional[float] = Form(None),
     cloud_cover_percent: Optional[float] = Form(None),
     file: UploadFile = File(...),
-    # current_user: models.User = Depends(deps.get_current_active_user) # Add authorization later
+    current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
     Upload an imagery file and create its metadata record.
-    (Requires user to have write access to the project - to be added later)
     """
-    # Check if project exists
     project = crud.project.get_project(db, project_id=project_id)
     if not project:
         raise HTTPException(status_code=404, detail=f"Project with id {project_id} not found")
 
-    # Add authorization check: does current_user have access to this project?
-    # Placeholder: Use user_id 1 until auth is implemented
-    uploader_id = 1 # Replace with current_user.user_id later
+    if not crud.user.is_superuser(current_user) and (project.owner_id != current_user.user_id):
+        raise HTTPException(status_code=403, detail="Not enough permissions to upload imagery to this project")
 
-    # Define file path
     file_location = os.path.join(UPLOAD_DIR, f"project_{project_id}_{file.filename}")
 
-    # Save the uploaded file
     try:
         with open(file_location, "wb+") as file_object:
             shutil.copyfileobj(file.file, file_object)
     except Exception as e:
-        # Clean up partially saved file if error occurs
         if os.path.exists(file_location):
             os.remove(file_location)
         raise HTTPException(status_code=500, detail=f"Could not save file: {e}")
@@ -78,8 +72,8 @@ def upload_imagery(
         file_path=file_location,
         file_format=file_format,
         crs=crs,
-        status=models.ImageryStatusEnum.RECEIVED, # Initial status
-        uploaded_by_id=uploader_id
+        status=models.imagery.ImageryStatusEnum.RECEIVED, # Initial status
+        uploaded_by_id=current_user.user_id
     )
 
     try:
@@ -94,57 +88,57 @@ def upload_imagery(
 
 @router.get("/", response_model=List[schemas.Imagery])
 def read_imagery_list(
-    db: Session = Depends(get_db),
-    project_id: Optional[int] = None, # Allow filtering by project_id
+    db: Session = Depends(deps.get_db),
+    project_id: Optional[int] = None,
     skip: int = 0,
     limit: int = 100,
-    # current_user: models.User = Depends(deps.get_current_active_user) # Add authorization later
+    current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
-    Retrieve imagery records, optionally filtered by project.
-    (Requires user to have read access - to be added later)
+    Retrieve imagery records for a specific project.
     """
-    if project_id:
-        # Check if project exists and user has access
-        project = crud.project.get_project(db, project_id=project_id)
-        if not project:
-             raise HTTPException(status_code=404, detail=f"Project with id {project_id} not found")
-        # Add authorization check here
-        imagery_list = crud.imagery.get_imagery_by_project(db, project_id=project_id, skip=skip, limit=limit)
-    else:
-        # Retrieving ALL imagery might need admin privileges
-         raise HTTPException(status_code=400, detail="Project ID must be provided to list imagery")
-    
+    if not project_id:
+        raise HTTPException(status_code=400, detail="Project ID must be provided to list imagery")
+        
+    project = crud.project.get_project(db, project_id=project_id)
+    if not project:
+         raise HTTPException(status_code=404, detail=f"Project with id {project_id} not found")
+
+    if not crud.user.is_superuser(current_user) and (project.owner_id != current_user.user_id):
+        raise HTTPException(status_code=403, detail="Not enough permissions to view imagery for this project")
+
+    imagery_list = crud.imagery.get_imagery_by_project(db, project_id=project_id, skip=skip, limit=limit)
     return imagery_list
 
 @router.get("/{imagery_id}", response_model=schemas.Imagery)
 def read_imagery_by_id(
     imagery_id: int,
-    db: Session = Depends(get_db),
-    # current_user: models.User = Depends(deps.get_current_active_user) # Add authorization later
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
     Get a specific imagery record by id.
-    (Requires user to have access to the imagery/project - to be added later)
     """
     imagery = crud.imagery.get_imagery(db, imagery_id=imagery_id)
     if not imagery:
         raise HTTPException(status_code=404, detail="Imagery not found")
     
-    # Add authorization check here (e.g., check project access)
+    project = crud.project.get_project(db, project_id=imagery.project_id)
+    if not crud.user.is_superuser(current_user) and (project.owner_id != current_user.user_id):
+        raise HTTPException(status_code=403, detail="Not enough permissions to view this imagery")
+
     return imagery
 
 @router.put("/{imagery_id}", response_model=schemas.Imagery)
 def update_imagery_metadata(
     *,
-    db: Session = Depends(get_db),
+    db: Session = Depends(deps.get_db),
     imagery_id: int,
     imagery_in: schemas.ImageryUpdate,
-    # current_user: models.User = Depends(deps.get_current_active_user) # Add authorization later
+    current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
-    Update imagery metadata (e.g., status, processing log).
-    (Requires user to have write access - to be added later)
+    Update imagery metadata.
     """
     db_imagery = crud.imagery.get_imagery(db, imagery_id=imagery_id)
     if not db_imagery:
@@ -153,7 +147,9 @@ def update_imagery_metadata(
             detail="The imagery with this id does not exist in the system",
         )
     
-    # Add authorization check here (e.g., check project access)
+    project = crud.project.get_project(db, project_id=db_imagery.project_id)
+    if not crud.user.is_superuser(current_user) and (project.owner_id != current_user.user_id):
+        raise HTTPException(status_code=403, detail="Not enough permissions to update this imagery")
     
     updated_imagery = crud.imagery.update_imagery(db=db, db_imagery=db_imagery, imagery_in=imagery_in)
     return updated_imagery
@@ -161,31 +157,61 @@ def update_imagery_metadata(
 @router.delete("/{imagery_id}", response_model=schemas.Imagery)
 def delete_imagery_record(
     *,
-    db: Session = Depends(get_db),
+    db: Session = Depends(deps.get_db),
     imagery_id: int,
-    # current_user: models.User = Depends(deps.get_current_active_user) # Add authorization later
+    current_user: models.User = Depends(deps.get_current_active_user),
 ) -> Any:
     """
-    Delete an imagery record (and optionally the file).
-    (Requires user to have delete access - to be added later)
+    Delete an imagery record.
     """
     imagery = crud.imagery.get_imagery(db=db, imagery_id=imagery_id)
     if not imagery:
         raise HTTPException(status_code=404, detail="Imagery not found")
         
-    # Add authorization check here (e.g., check project access)
+    project = crud.project.get_project(db, project_id=imagery.project_id)
+    if not crud.user.is_superuser(current_user) and (project.owner_id != current_user.user_id):
+        raise HTTPException(status_code=403, detail="Not enough permissions to delete this imagery")
     
-    # Optionally delete the associated file from storage
-    # file_path = imagery.file_path
-    # if file_path and os.path.exists(file_path):
-    #     try:
-    #         os.remove(file_path)
-    #     except Exception as e:
-    #         print(f"Warning: Could not delete imagery file {file_path}: {e}")
-            # Decide if failure to delete file should prevent DB record deletion
-
     deleted_imagery = crud.imagery.delete_imagery(db=db, imagery_id=imagery_id)
     return deleted_imagery
+
+@router.post("/{imagery_id}/process", status_code=status.HTTP_202_ACCEPTED)
+def process_imagery(
+    *,
+    db: Session = Depends(deps.get_db),
+    imagery_id: int,
+    current_user: models.User = Depends(deps.get_current_active_user),
+) -> Any:
+    """
+    Triggers the full processing pipeline for a specific imagery record.
+    """
+    db_imagery = crud.imagery.get_imagery(db, imagery_id=imagery_id)
+    if not db_imagery:
+        raise HTTPException(
+            status_code=404,
+            detail="The imagery with this id does not exist in the system",
+        )
+        
+    project = crud.project.get_project(db, project_id=db_imagery.project_id)
+    if not crud.user.is_superuser(current_user) and (project.owner_id != current_user.user_id):
+        raise HTTPException(status_code=403, detail="Not enough permissions to process this imagery")
+
+    try:
+        processor = ImageProcessor(imagery_record=db_imagery, db_session=db)
+        success = processor.process()
+        if success:
+            return {"message": "Image processing started successfully."}
+        else:
+            raise HTTPException(
+                status_code=500,
+                detail="Image processing failed. Check server logs for details."
+            )
+    except Exception as e:
+        logger.error(f"Error starting image processing for {imagery_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"An internal error occurred while starting the processing job: {e}"
+        )
 
 print("API endpoints for Imagery defined.")
 

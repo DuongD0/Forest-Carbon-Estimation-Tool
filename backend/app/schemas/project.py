@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, Any
+from typing import Optional, Any, Dict, List
 from datetime import datetime
 from .user import User # Import User schema for owner details
 from app.models.project import ProjectStatus # Import Enum
@@ -43,6 +43,60 @@ class Project(ProjectInDBBase):
 # Properties stored in DB
 class ProjectInDB(ProjectInDBBase):
     pass
+
+# Schemas for Calculation Results
+class BiomassSummary(BaseModel):
+    agb_tonnes: float
+    bgb_tonnes: float
+    total_biomass_tonnes: float
+
+class CarbonStockResult(BaseModel):
+    forest_id: int
+    agb_carbon_tonnes: float
+    bgb_carbon_tonnes: float
+    total_carbon_tonnes: float
+    total_co2e_tonnes: float
+
+class CarbonCreditResult(BaseModel):
+    # forest_id: int # This is now part of the parent ForestCalculationResult
+    gross_credits_co2e: float
+    net_credits_co2e: float
+    issuable_credits_co2e: float
+    leakage_deduction_co2e: float
+    permanence_buffer_co2e: float
+
+class CalculationResultData(BaseModel):
+    # project_id: int # This is now part of the parent ProjectCalculationResult
+    current_biomass: BiomassSummary
+    current_carbon_stock: CarbonStockResult
+    carbon_credits: CarbonCreditResult
+    # The baseline might be simple for now
+    baseline_stock: Dict[str, Any]
+
+class ForestCalculationResult(BaseModel):
+    forest_id: int
+    current_stock: CarbonStockResult
+    baseline_stock: Dict[str, Any]
+    carbon_credits: CarbonCreditResult
+    error: Optional[str] = None
+
+class ProjectCalculationResult(BaseModel):
+    project_id: int
+    # calculation_results: CalculationResultData # Old schema
+    forest_calculations: List[ForestCalculationResult]
+
+# New schemas for asynchronous calculation tasks
+class CalculationStatus(BaseModel):
+    forest_id: int
+    status: str
+    credit_id: Optional[int] = None
+    error: Optional[str] = None
+
+class ProjectCalculationResponse(BaseModel):
+    project_id: int
+    status: str
+    message: str
+    results: Optional[List[CalculationStatus]] = None
 
 print("Pydantic schemas for Project defined.")
 

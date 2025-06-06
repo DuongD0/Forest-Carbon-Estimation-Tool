@@ -1,8 +1,16 @@
 from sqlalchemy.orm import Session, joinedload
 from typing import List, Optional
 
+from app.crud.base import CRUDBase
 from app.models.imagery import Imagery, ImageryStatusEnum, ImagerySourceEnum
 from app.schemas.imagery import ImageryCreate, ImageryUpdate
+
+
+class CRUDImagery(CRUDBase[Imagery, ImageryCreate, ImageryUpdate]):
+    pass
+
+
+imagery = CRUDImagery(Imagery)
 
 
 def get_imagery(db: Session, imagery_id: int) -> Optional[Imagery]:

@@ -22,7 +22,7 @@ class Project(Base):
     status = Column(SQLEnum(ProjectStatus), default=ProjectStatus.DRAFT, nullable=False)
     owner_id = Column(Integer, ForeignKey("user_mgmt.users.user_id"), nullable=False)
     # Define location using PostGIS geometry (e.g., a bounding box or centroid)
-    location_geometry = Column(Geometry(geometry_type=\"POLYGON\", srid=4326), nullable=True)
+    location_geometry = Column(Geometry(geometry_type="POLYGON", srid=4326), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
