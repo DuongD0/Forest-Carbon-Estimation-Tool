@@ -57,12 +57,17 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: frontend
+    container_name: forest_carbon_frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # Prevent node_modules overwrite
     ports:
       - "3000:3000"
     environment:
       REACT_APP_API_URL: http://localhost:8000/api/v1
     restart: unless-stopped
+    stdin_open: true
+    tty: true
 
 volumes:
   postgres_data:
