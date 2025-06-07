@@ -1,30 +1,26 @@
-# Use an official Node runtime as a parent image
+# Use an official Node.js runtime as the base image
 FROM node:20-alpine
 
-# Set the working directory in the container
+# Set the working directory inside the container
 WORKDIR /app
 
-# Copy package.json and yarn.lock (or package-lock.json) first
-# to leverage Docker cache
-COPY package.json yarn.lock* package-lock.json* ./
+# Copy dependency files first to leverage Docker layer caching
+COPY package.json package-lock.json ./
 
-# Install dependencies
-# Using yarn, but could be npm install or pnpm install
-# Use --frozen-lockfile for yarn/pnpm or ci for npm to ensure reproducible installs
-RUN yarn install --frozen-lockfile
+# Install exact dependencies defined in package-lock.json (clean & reproducible)
+RUN npm ci
 
-# Copy the rest of the frontend application code into the container at /app
+# Copy the rest of the application source code
 COPY . .
 
 # Build the React app for production
-RUN yarn build
+RUN npm run build
 
-# Install serve to run the production build
+# Install a lightweight HTTP server to serve the production build
 RUN npm install -g serve
 
-# Make port 3000 available to the world outside this container
+# Expose port 3000
 EXPOSE 3000
 
-# Run the production build using serve
+# Start the app
 CMD ["serve", "-s", "build", "-l", "3000"]
-

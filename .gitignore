@@ -1,6 +1,75 @@
-# Carbon Credit Estimation Tool - .gitignore
+# =========================
+# Node.js (React Frontend)
+# =========================
 
-# Python
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+jspm_packages/
+bower_components/
+typings/
+*.tgz
+
+# Build outputs
+/build
+/dist
+/out
+.next
+.nuxt
+public
+.cache/
+.parcel-cache
+.storybook-out
+.out
+coverage/
+.nyc_output
+.npm
+.yarn-integrity
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+.eslintcache
+*.tsbuildinfo
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+*.log
+logs/
+log/
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Misc
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env
+.env.production
+.env.staging
+.env.development
+.env.local
+.yarn-integrity
+.node_repl_history
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# =========================
+# Python (Backend / Scripts)
+# =========================
+
 __pycache__/
 *.py[cod]
 *$py.class
@@ -29,10 +98,6 @@ MANIFEST
 *.manifest
 *.spec
 
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
 # Unit test / coverage reports
 htmlcov/
 .tox/
@@ -40,147 +105,56 @@ htmlcov/
 .coverage
 .coverage.*
 .cache
+.pytest_cache/
 nosetests.xml
 coverage.xml
 *.cover
 *.py,cover
 .hypothesis/
-.pytest_cache/
 
-# Jupyter Notebook
+# Jupyter Notebook / IPython
 .ipynb_checkpoints
-
-# IPython
 profile_default/
 ipython_config.py
 
-# pyenv
+# pyenv / pipenv
 .python-version
-
-# pipenv
 Pipfile.lock
 
 # PEP 582
 __pypackages__/
 
-# Celery stuff
+# Celery
 celerybeat-schedule
 celerybeat.pid
 
-# SageMath parsed files
+# SageMath
 *.sage.py
 
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
+# mypy / Pyre
 .mypy_cache/
 .dmypy.json
 dmypy.json
-
-# Pyre type checker
 .pyre/
 
-# Node.js (for React frontend)
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-lerna-debug.log*
+# Rope / Spyder
+.ropeproject
+.spyderproject
+.spyproject
 
-# Runtime data
-pids
-*.pid
-*.seed
-*.pid.lock
+# mkdocs
+/site
 
-# Coverage directory used by tools like istanbul
-coverage/
-*.lcov
+# Local dev & docker
+.local/
+.development/
+.dockerignore
+docker-compose.override.yml
+.docker/
 
-# nyc test coverage
-.nyc_output
-
-# Grunt intermediate storage
-.grunt
-
-# Bower dependency directory
-bower_components
-
-# node-waf configuration
-.lock-wscript
-
-# Compiled binary addons
-build/Release
-
-# Dependency directories
-jspm_packages/
-
-# TypeScript v1 declaration files
-typings/
-
-# TypeScript cache
-*.tsbuildinfo
-
-# Optional npm cache directory
-.npm
-
-# Optional eslint cache
-.eslintcache
-
-# Microbundle cache
-.rpt2_cache/
-.rts2_cache_cjs/
-.rts2_cache_es/
-.rts2_cache_umd/
-
-# Optional REPL history
-.node_repl_history
-
-# Output of 'npm pack'
-*.tgz
-
-# Yarn Integrity file
-.yarn-integrity
-
-# parcel-bundler cache
-.cache
-.parcel-cache
-
-# Next.js build output
-.next
-
-# Nuxt.js build / generate output
-.nuxt
-dist
-
-# Gatsby files
-.cache/
-public
-
-# Storybook build outputs
-.out
-.storybook-out
-
-# Temporary folders
-tmp/
-temp/
+# =========================
+# Data and Geo Files
+# =========================
 
 # Database
 *.db
@@ -190,7 +164,7 @@ postgresql/
 postgres-data/
 db_data/
 
-# Geospatial Data Files (Large files that shouldn't be in version control)
+# Geospatial (raster/vector)
 *.tif
 *.tiff
 *.jp2
@@ -207,14 +181,11 @@ db_data/
 *.mrsid
 *.las
 *.laz
-data/imagery/
-data/raster/
-data/raw/
-data/processed/
-uploads/imagery/
-test_data/large/
-
-# Shapefiles (keep .shp.xml and small reference files, exclude large data)
+*.kml
+*.kmz
+*.gpx
+*.gml
+*.json.gz
 *.shp
 *.dbf
 *.shx
@@ -230,62 +201,35 @@ test_data/large/
 *.atx
 *.cpg
 
+# Large data folders
+data/imagery/
+data/raster/
+data/raw/
+data/processed/
+uploads/imagery/
+test_data/large/
+data/vector/large/
+
 # Keep small reference shapefiles
 !reference_data/**/*.shp
 !reference_data/**/*.dbf
 !reference_data/**/*.shx
 !reference_data/**/*.prj
 
-# Vector data formats
-*.kml
-*.kmz
-*.gpx
-*.gml
-*.json.gz
-data/vector/large/
-
-# Processing outputs
+# Outputs and reports
 outputs/
 results/
 calculations/
 reports/generated/
 exports/
 
-# Docker
-.dockerignore
-docker-compose.override.yml
-.docker/
+# =========================
+# System and Editor Files
+# =========================
 
-# IDE and Editor Files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# Sublime Text
-*.sublime-project
-*.sublime-workspace
-
-# Emacs
-*~
-\#*\#
-/.emacs.desktop
-/.emacs.desktop.lock
-*.elc
-auto-save-list
-tramp
-.\#*
-
-# Vim
-[._]*.s[a-v][a-z]
-[._]*.sw[a-p]
-[._]s[a-rt-v][a-z]
-[._]ss[a-gi-z]
-[._]sw[a-p]
-
-# MacOS
+# macOS
 .DS_Store
+.DS_Store?
 .AppleDouble
 .LSOverride
 Icon
@@ -305,7 +249,6 @@ Temporary Items
 
 # Windows
 Thumbs.db
-Thumbs.db:encryptable
 ehthumbs.db
 ehthumbs_vista.db
 *.stackdump
@@ -325,60 +268,57 @@ $RECYCLE.BIN/
 .Trash-*
 .nfs*
 
-# Configuration files with sensitive data
+# Vim / Emacs / Sublime / IDEs
+*.sublime-project
+*.sublime-workspace
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+[._]*.s[a-v][a-z]
+[._]*.sw[a-p]
+[._]s[a-rt-v][a-z]
+[._]ss[a-gi-z]
+[._]sw[a-p]
+
+# =========================
+# Secrets and Sensitive Data
+# =========================
+
 config/production.py
 config/local.py
-.env.local
-.env.production
-.env.staging
 secrets.json
 credentials.json
 service-account-key.json
-
-# SSL certificates
 *.pem
 *.key
 *.crt
 *.cert
 
-# Logs
-logs/
-*.log
-log/
+# =========================
+# Backups, Archives, Temp
+# =========================
 
-# Backup files
 *.bak
 *.backup
 *.old
 *.orig
-
-# Archive files
 *.zip
 *.tar.gz
 *.rar
 *.7z
+*.tmp
+*.temp
 
-# Monitoring and profiling
-.monitoring/
-.profiling/
-newrelic.ini
+# =========================
+# Other tools
+# =========================
 
-# Cache files
-.cache/
-.sass-cache/
-.postcss-cache/
-
-# Build artifacts
-build/
-dist/
-out/
-
-# Documentation build
-docs/_build/
-docs/html/
-docs/latex/
-
-# Terraform (if using Infrastructure as Code)
+# Terraform
 *.tfstate
 *.tfstate.*
 .terraform/
@@ -387,16 +327,14 @@ docs/latex/
 # Kubernetes
 *.kubeconfig
 
-# Local development
-.local/
-.development/
+# Monitoring / Profiling
+.monitoring/
+.profiling/
+newrelic.ini
 
-# Miscellaneous
-*.tmp
-*.temp
-.DS_Store?
-.Spotlight-V100
-.Trashes
-Icon?
-ehthumbs.db
-Thumbs.db 
+# Docs
+docs/_build/
+docs/html/
+docs/latex/
+
+**/node_modules

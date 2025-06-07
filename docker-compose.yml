@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   db:
     image: postgis/postgis:13-3.1
@@ -59,22 +57,13 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: forest_carbon_frontend
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules # Prevent host node_modules from overwriting container's
+    container_name: frontend
     ports:
       - "3000:3000"
     environment:
-      REACT_APP_API_URL: http://localhost:8000/api/v1 # Adjust if needed
-      # Add other environment variables as needed
-    depends_on:
-      - backend
-    stdin_open: true # Required for Create React App interactive mode
-    tty: true # Required for Create React App interactive mode
+      REACT_APP_API_URL: http://localhost:8000/api/v1
     restart: unless-stopped
 
 volumes:
   postgres_data:
   redis_data:
-
