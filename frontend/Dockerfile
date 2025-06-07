@@ -1,26 +1,20 @@
 # Use an official Node.js runtime as the base image
 FROM node:20-alpine
 
-# Set the working directory inside the container
+# Set working directory inside the container
 WORKDIR /app
 
-# Copy dependency files first to leverage Docker layer caching
-COPY package.json package-lock.json ./
+# Copy package files first (to leverage Docker layer caching)
+COPY package.json ./
 
-# Install exact dependencies defined in package-lock.json (clean & reproducible)
-RUN npm ci
+# Install dependencies (including dev dependencies)
+RUN npm install
 
-# Copy the rest of the application source code
+# Copy the rest of the application
 COPY . .
 
-# Build the React app for production
-RUN npm run build
-
-# Install a lightweight HTTP server to serve the production build
-RUN npm install -g serve
-
-# Expose port 3000
+# Expose the port used by the React dev server
 EXPOSE 3000
 
-# Start the app
-CMD ["serve", "-s", "build", "-l", "3000"]
+# Start the React app in development mode
+CMD ["npm", "start"]

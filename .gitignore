@@ -338,3 +338,4 @@ docs/html/
 docs/latex/
 
 **/node_modules
+**/package-lock.json
