@@ -1,6 +1,7 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { AuthProvider } from "./contexts/AuthContext";
+import { withAuthenticationRequired } from "@auth0/auth0-react";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -9,14 +10,17 @@ import ProjectDetail from "./pages/ProjectDetail";
 import ForestDetail from "./pages/ForestDetail";
 import ImageryDetail from "./pages/ImageryDetail";
 import CarbonCalculation from "./pages/CarbonCalculation";
+import Marketplace from "./pages/Marketplace";
 
 interface PrivateRouteProps {
-  children: JSX.Element;
+  component: React.ComponentType;
 }
 
-const PrivateRoute: React.FC<PrivateRouteProps> = ({ children }) => {
-  const { isAuthenticated } = useAuth();
-  return isAuthenticated ? children : <Navigate to="/login" />;
+const PrivateRoute: React.FC<PrivateRouteProps> = ({ component }) => {
+  const Component = withAuthenticationRequired(component, {
+    // You can add a custom loading component here
+  });
+  return <Component />;
 };
 
 const App: React.FC = () => {
@@ -28,53 +32,33 @@ const App: React.FC = () => {
             <Route path="/login" element={<Login />} />
             <Route
               path="/"
-              element={
-                <PrivateRoute>
-                  <Dashboard />
-                </PrivateRoute>
-              }
+              element={<PrivateRoute component={Dashboard} />}
             />
             <Route
               path="/projects"
-              element={
-                <PrivateRoute>
-                  <ProjectList />
-                </PrivateRoute>
-              }
+              element={<PrivateRoute component={ProjectList} />}
             />
             <Route
               path="/projects/:projectId"
-              element={
-                <PrivateRoute>
-                  <ProjectDetail />
-                </PrivateRoute>
-              }
+              element={<PrivateRoute component={ProjectDetail} />}
             />
             <Route
               path="/forests/:forestId"
-              element={
-                <PrivateRoute>
-                  <ForestDetail />
-                </PrivateRoute>
-              }
+              element={<PrivateRoute component={ForestDetail} />}
             />
             <Route
               path="/imagery/:imageryId"
-              element={
-                <PrivateRoute>
-                  <ImageryDetail />
-                </PrivateRoute>
-              }
+              element={<PrivateRoute component={ImageryDetail} />}
             />
             <Route
               path="/calculate-carbon"
-              element={
-                <PrivateRoute>
-                  <CarbonCalculation />
-                </PrivateRoute>
-              }
+              element={<PrivateRoute component={CarbonCalculation} />}
             />
-            {/* Redirect root to dashboard if authenticated */}
+            <Route
+              path="/marketplace"
+              element={<PrivateRoute component={Marketplace} />}
+            />
+            {/* Redirect root to dashboard */}
             <Route path="/" element={<Navigate to="/" />} />
           </Routes>
         </Layout>

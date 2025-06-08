@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>API Docs</title>
+    <!-- Embed Stoplight Elements CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/@stoplight/elements/styles.min.css">
+  </head>
+  <body>
+
+    <div id="elements-api"></div>
+
+    <!-- Embed Stoplight Elements JS -->
+    <script src="https://unpkg.com/@stoplight/elements/web-components.min.js"></script>
+    <script>
+      const apiDescriptionDocument = {
+        // OpenAPI specification will be dynamically injected here
+      };
+
+      const elements = document.getElementById('elements-api');
+      
+      Elements.init({
+        el: elements,
+        apiDescription: apiDescriptionDocument,
+        router: 'hash'
+      });
+    </script>
+  </body>
+</html> 

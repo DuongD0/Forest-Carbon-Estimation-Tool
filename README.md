@@ -31,8 +31,9 @@ The project is organized into a `backend` (FastAPI) and a `frontend` (React) app
 │   │   ├── crud/      # CRUD database operations
 │   │   ├── db/        # Database session and initialization
 │   │   ├── models/    # SQLAlchemy ORM models
-│   │   ├── processing/# Business logic (carbon, image, geo)
+│   │   ├── services/  # Business logic (carbon, payments, etc.)
 │   │   └── schemas/   # Pydantic data validation schemas
+│   ├── tests/         # Backend test suite
 │   ├── main.py        # App entry point
 │   └── ...
 ├── frontend/          # React frontend application
@@ -43,8 +44,7 @@ The project is organized into a `backend` (FastAPI) and a `frontend` (React) app
 │   │   ├── services/
 │   │   └── ...
 │   └── ...
-├── tests/             # Backend test suite
-└── docker-compose.yml # Docker Compose configuration
+├── docker-compose.yml # Docker Compose configuration
 ```
 
 ## Technology Stack
@@ -71,13 +71,32 @@ The project is organized into a `backend` (FastAPI) and a `frontend` (React) app
 2.  **Set up the environment.** It is recommended to use the `Forest` conda environment as specified in the project's memory.
     ```bash
     # (If you have conda)
-    conda env create -f environment.yml # Or create from requirements.txt
+    conda create --name Forest python=3.9
     conda activate Forest
+    pip install -r requirements.txt
     ```
 
-3.  **Create a `.env` file** from the example and fill in your configuration:
+3.  **Create a `.env` file** and add the following environment variables:
     ```bash
-    cp .env.example .env
+    # PostgreSQL
+    DATABASE_URL=postgresql://user:password@db:5432/mydatabase
+
+    # For running tests
+    TEST_DATABASE_URL=postgresql://user:password@localhost:5433/testdatabase
+
+    # JWT
+    SECRET_KEY=a_very_secure_default_secret_key_replace_it
+    ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+    # Auth0
+    AUTH0_DOMAIN=your_auth0_domain
+    AUTH0_API_AUDIENCE=your_auth0_api_audience
+    AUTH0_ISSUER=https://your_auth0_domain/
+    AUTH0_ALGORITHMS=RS256
+
+    # Stripe
+    STRIPE_SECRET_KEY=your_stripe_secret_key
+    STRIPE_API_VERSION=2022-11-15
     ```
 
 4.  **Launch services using Docker Compose:**

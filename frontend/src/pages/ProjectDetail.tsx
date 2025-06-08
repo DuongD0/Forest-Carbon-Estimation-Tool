@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link as RouterLink } from 'react-router-dom';
-import api from '../services/api';
+import { useParams, Link } from 'react-router-dom';
+import useApi from '../services/api';
 import {
     Container,
     Typography,
@@ -28,9 +28,10 @@ import {
 
 // Interfaces matching the backend Pydantic schemas
 interface Project {
-    project_id: number;
-    project_name: string;
+    id: string;
+    name: string;
     description: string;
+    project_type: string;
     status: string;
     area_ha: number | null;
     created_at: string;
@@ -57,31 +58,33 @@ const ProjectDetail: React.FC = () => {
     const [forests, setForests] = useState<Forest[]>([]);
     const [calculationStatus, setCalculationStatus] = useState<CalculationStatusResult[] | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
-    const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState<string>('');
     const [calculating, setCalculating] = useState<boolean>(false);
     const [tabIndex, setTabIndex] = useState(0);
+    const api = useApi();
 
     useEffect(() => {
-        const fetchProjectDetails = async () => {
-            if (!projectId) return;
-            try {
-                setLoading(true);
-                const projectRes = await api.get(`/projects/${projectId}`);
-                setProject(projectRes.data);
+        if (api) {
+            const fetchProject = async () => {
+                if (!projectId) return;
+                try {
+                    setLoading(true);
+                    const response = await api.get(`/projects/${projectId}`);
+                    setProject(response.data);
 
-                const forestsRes = await api.get(`/forests/?project_id=${projectId}`);
-                setForests(forestsRes.data);
+                    const forestsRes = await api.get(`/forests/?project_id=${projectId}`);
+                    setForests(forestsRes.data);
 
-            } catch (err) {
-                setError('Failed to fetch project details.');
-                console.error(err);
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchProjectDetails();
-    }, [projectId]);
+                } catch (err) {
+                    setError('Failed to fetch project details.');
+                    console.error(err);
+                } finally {
+                    setLoading(false);
+                }
+            };
+            fetchProject();
+        }
+    }, [api, projectId]);
 
     const handleCalculateCarbon = async () => {
         if (!projectId) return;
@@ -119,14 +122,14 @@ const ProjectDetail: React.FC = () => {
     }
 
     if (!project) {
-        return <Typography>Project not found.</Typography>;
+        return <Alert severity="info">Project not found.</Alert>;
     }
 
     return (
         <Container maxWidth="lg" sx={{ mt: 4 }}>
             <Box sx={{ my: 4 }}>
                 <Typography variant="h4" component="h1" gutterBottom>
-                    {project.project_name}
+                    {project.name}
                 </Typography>
                 <Typography variant="body1" color="text.secondary">
                     {project.description}
@@ -153,15 +156,23 @@ const ProjectDetail: React.FC = () => {
             {/* Overview Tab */}
             <Box hidden={tabIndex !== 0} sx={{ p: 3 }}>
                 <Grid container spacing={2}>
-                    <Grid item xs={12} md={6}>
-                        <Card>
-                            <CardContent>
-                                <Typography variant="h6">Project Details</Typography>
-                                <Typography>Status: {project.status}</Typography>
-                                <Typography>Area: {project.area_ha || 'N/A'} ha</Typography>
-                                <Typography>Created: {new Date(project.created_at).toLocaleDateString()}</Typography>
-                            </CardContent>
-                        </Card>
+                    <Grid item xs={12}>
+                        <Typography variant="h6">Project Details</Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <Typography><strong>ID:</strong> {project.id}</Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <Typography><strong>Status:</strong> {project.status}</Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                        <Typography><strong>Type:</strong> {project.project_type}</Typography>
+                    </Grid>
+                    <Grid item xs={12}>
+                        <Typography><strong>Area:</strong> {project.area_ha || 'N/A'} ha</Typography>
+                    </Grid>
+                    <Grid item xs={12}>
+                        <Typography><strong>Created:</strong> {new Date(project.created_at).toLocaleDateString()}</Typography>
                     </Grid>
                 </Grid>
             </Box>
@@ -171,7 +182,7 @@ const ProjectDetail: React.FC = () => {
                 <List>
                     {forests.map((forest) => (
                         <ListItem key={forest.forest_id} disablePadding>
-                             <ListItemButton component={RouterLink} to={`/forests/${forest.forest_id}`}>
+                             <ListItemButton component={Link} to={`/forests/${forest.forest_id}`}>
                                 <ListItemText 
                                     primary={forest.forest_name} 
                                     secondary={`Type: ${forest.forest_type} | Area: ${forest.area_ha} ha`} 
@@ -218,6 +229,12 @@ const ProjectDetail: React.FC = () => {
                 ) : (
                     !calculating && <Typography>No calculation has been run for this project yet, or results are not available.</Typography>
                 )}
+            </Box>
+
+            <Box sx={{ mt: 2 }}>
+                <Button component={Link} to="/projects" variant="outlined">
+                    Back to Project List
+                </Button>
             </Box>
         </Container>
     );

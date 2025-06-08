@@ -29,8 +29,13 @@ import ImageIcon from '@mui/icons-material/Image';
 import CalculateIcon from '@mui/icons-material/Calculate';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
+import StorefrontIcon from '@mui/icons-material/Storefront';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import Dashboard from '../pages/Dashboard';
+import Reports from '../pages/Reports';
+import Marketplace from '../pages/Marketplace';
 
 const drawerWidth = 240;
 
@@ -96,12 +101,34 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   const menuItems = [
-    { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
+    { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
     { text: 'Projects', icon: <FolderIcon />, path: '/projects' },
-    { text: 'Forests', icon: <ForestIcon />, path: '/forests' },
-    { text: 'Imagery', icon: <ImageIcon />, path: '/imageries' },
-    { text: 'Carbon Calculation', icon: <CalculateIcon />, path: '/carbon-calculation' },
+    { text: 'Marketplace', icon: <StorefrontIcon />, path: '/marketplace' },
+    { text: 'Carbon Calculation', icon: <CalculateIcon />, path: '/calculate-carbon' },
   ];
+
+  const MainListItems = (
+    <React.Fragment>
+      <ListItemButton component={Link} to="/dashboard">
+        <ListItemIcon>
+          <DashboardIcon />
+        </ListItemIcon>
+        <ListItemText primary="Dashboard" />
+      </ListItemButton>
+      <ListItemButton component={Link} to="/reports">
+        <ListItemIcon>
+          <BarChartIcon />
+        </ListItemIcon>
+        <ListItemText primary="Reports" />
+      </ListItemButton>
+      <ListItemButton component={Link} to="/marketplace">
+        <ListItemIcon>
+          <StorefrontIcon />
+        </ListItemIcon>
+        <ListItemText primary="Marketplace" />
+      </ListItemButton>
+    </React.Fragment>
+  );
 
   return (
     <Box sx={{ display: 'flex' }}>
@@ -230,7 +257,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       </Drawer>
       <Main open={open && !isMobile}>
         <Toolbar />
-        {children}
+        <Routes>
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/reports" element={<Reports />} />
+          <Route path="/marketplace" element={<Marketplace />} />
+          <Route path="/" element={<Navigate replace to="/dashboard" />} />
+        </Routes>
       </Main>
     </Box>
   );

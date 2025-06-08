@@ -1,41 +1,44 @@
-import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosError, AxiosResponse, InternalAxiosRequestConfig, AxiosInstance } from 'axios';
+import { useAuth0 } from '@auth0/auth0-react';
+import { useEffect, useState } from 'react';
 
 // Define the base URL for API calls
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8000/api/v1';
 
-// Create axios instance with default config
-const apiClient = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+const useApi = (): AxiosInstance | null => {
+  const { getAccessTokenSilently } = useAuth0();
+  const [api, setApi] = useState<AxiosInstance | null>(null);
 
-// Request interceptor to add auth token to headers
-apiClient.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('accessToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error: AxiosError) => Promise.reject(error)
-);
+  useEffect(() => {
+    const apiInstance = axios.create({
+      baseURL: API_BASE_URL,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
 
-// Response interceptor for handling common errors
-apiClient.interceptors.response.use(
-  (response: AxiosResponse) => response,
-  (error: AxiosError) => {
-    // Handle specific status codes if needed
-    if (error.response?.status === 401) {
-      // e.g., redirect to login
-      localStorage.removeItem('accessToken');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
+    apiInstance.interceptors.request.use(
+      async (config) => {
+        try {
+          const token = await getAccessTokenSilently();
+          if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+          }
+        } catch (error) {
+          console.error('Could not get access token', error);
+        }
+        return config;
+      },
+      (error) => {
+        return Promise.reject(error);
+      }
+    );
+
+    setApi(apiInstance);
+  }, [getAccessTokenSilently]);
+
+  return api;
+};
 
 // API service for authentication
 export const authService = {
@@ -125,4 +128,4 @@ export const imageryService = {
     }
 };
 
-export default apiClient;
+export default useApi;

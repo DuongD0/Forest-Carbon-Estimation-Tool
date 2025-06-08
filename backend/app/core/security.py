@@ -5,6 +5,10 @@ from jose import jwt
 import os
 from dotenv import load_dotenv
 from app.core.config import settings
+from fastapi import Depends, HTTPException, status
+from fastapi.security import SecurityScopes, OAuth2AuthorizationCodeBearer
+import httpx
+from jose import jwt, JWTError
 
 load_dotenv()
 
@@ -38,4 +42,67 @@ def create_access_token(
     return encoded_jwt
 
 print("Security utilities (password hashing, JWT) defined.")
+
+class Auth0:
+    def __init__(self):
+        self.domain = settings.AUTH0_DOMAIN
+        self.audience = settings.AUTH0_API_AUDIENCE
+        self.issuer = settings.AUTH0_ISSUER
+        self.algorithms = [settings.AUTH0_ALGORITHMS]
+        self.jwks_url = f"https://{self.domain}/.well-known/jwks.json"
+
+    async def get_jwks(self):
+        async with httpx.AsyncClient() as client:
+            response = await client.get(self.jwks_url)
+            response.raise_for_status()
+            return response.json()
+
+    async def verify_token(self, token: str, security_scopes: SecurityScopes):
+        if token is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Requires authentication")
+
+        try:
+            jwks = await self.get_jwks()
+            unverified_header = jwt.get_unverified_header(token)
+            rsa_key = {}
+            for key in jwks["keys"]:
+                if key["kid"] == unverified_header["kid"]:
+                    rsa_key = {
+                        "kty": key["kty"],
+                        "kid": key["kid"],
+                        "use": key["use"],
+                        "n": key["n"],
+                        "e": key["e"],
+                    }
+            if rsa_key:
+                payload = jwt.decode(
+                    token,
+                    rsa_key,
+                    algorithms=self.algorithms,
+                    audience=self.audience,
+                    issuer=self.issuer,
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Unable to find appropriate key",
+                )
+        except JWTError as e:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=str(e),
+            ) from e
+
+        if security_scopes.scopes:
+            token_scopes = payload.get("scope", "").split()
+            for scope in security_scopes.scopes:
+                if scope not in token_scopes:
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Not enough permissions",
+                    )
+        
+        return payload
+
+auth = Auth0()
 

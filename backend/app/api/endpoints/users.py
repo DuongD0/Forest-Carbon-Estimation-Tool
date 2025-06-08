@@ -1,236 +1,108 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Security
 from sqlalchemy.orm import Session
-from typing import List, Any
-
-from app import schemas, crud, models
-from app.db.session import get_db
+from app import models, schemas, crud
 from app.api import deps
+from typing import List
+from fastapi import HTTPException
 
 router = APIRouter()
 
-# --- User Endpoints ---
+@router.get("/me", response_model=schemas.User)
+def read_user_me(
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """
+    Get current user profile.
+    """
+    return current_user
 
-@router.post("/users/", response_model=schemas.User, status_code=status.HTTP_201_CREATED)
-def create_user(
-    *, # Force keyword arguments
+@router.put("/me", response_model=schemas.User)
+def update_user_me(
+    *,
     db: Session = Depends(deps.get_db),
-    user_in: schemas.UserCreate,
-    current_user: models.User = Depends(deps.get_current_active_superuser),
-) -> Any:
+    user_in: schemas.UserUpdate,
+    current_user: models.User = Depends(deps.get_current_user),
+):
     """
-    Create new user.
+    Update own user profile.
     """
-    user = crud.user.get_user_by_email(db, email=user_in.email)
-    if user:
-        raise HTTPException(
-            status_code=400,
-            detail="The user with this email already exists in the system.",
-        )
-    user = crud.user.get_user_by_username(db, username=user_in.username)
-    if user:
-        raise HTTPException(
-            status_code=400,
-            detail="The user with this username already exists in the system.",
-        )
-    user = crud.user.create_user(db=db, user=user_in)
+    user = crud.user.update(db, db_obj=current_user, obj_in=user_in)
     return user
 
-@router.get("/users/", response_model=List[schemas.User])
+@router.get("/me/bookmarks", response_model=List[schemas.Project])
+def get_user_bookmarks(
+    *,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """
+    Get all projects bookmarked by the current user.
+    """
+    return current_user.bookmarked_projects
+
+@router.post("/me/bookmarks", response_model=schemas.Project)
+def add_user_bookmark(
+    *,
+    db: Session = Depends(deps.get_db),
+    bookmark_in: schemas.ProjectBookmarkCreate,
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """
+    Add a project to the current user's bookmarks.
+    """
+    project_to_bookmark = crud.project.get(db, id=bookmark_in.project_id)
+    if not project_to_bookmark:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    current_user.bookmarked_projects.append(project_to_bookmark)
+    db.add(current_user)
+    db.commit()
+    db.refresh(project_to_bookmark)
+
+    return project_to_bookmark
+
+@router.delete("/me/bookmarks/{project_id}", response_model=schemas.Project)
+def remove_user_bookmark(
+    *,
+    db: Session = Depends(deps.get_db),
+    project_id: str,
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """
+    Remove a project from the current user's bookmarks.
+    """
+    project_to_remove = crud.project.get(db, id=project_id)
+    if not project_to_remove:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    if project_to_remove in current_user.bookmarked_projects:
+        current_user.bookmarked_projects.remove(project_to_remove)
+        db.add(current_user)
+        db.commit()
+    
+    return project_to_remove
+
+@router.get("/", response_model=List[schemas.User])
 def read_users(
     db: Session = Depends(deps.get_db),
     skip: int = 0,
     limit: int = 100,
-    current_user: models.User = Depends(deps.get_current_active_superuser),
-) -> Any:
+    current_user: models.User = Security(deps.get_current_user, scopes=["read:users"]),
+):
     """
-    Retrieve users.
+    Retrieve all users. (Admin only)
     """
-    users = crud.user.get_users(db, skip=skip, limit=limit)
+    users = crud.user.get_multi(db, skip=skip, limit=limit)
     return users
 
-@router.get("/users/me", response_model=schemas.User)
-def read_user_me(
-    current_user: models.User = Depends(deps.get_current_active_user),
-) -> Any:
-    """
-    Get current user.
-    """
-    return current_user
-
-@router.get("/users/{user_id}", response_model=schemas.User)
+@router.get("/{user_id}", response_model=schemas.User)
 def read_user_by_id(
-    user_id: int,
+    user_id: str,
     db: Session = Depends(deps.get_db),
-    current_user: models.User = Depends(deps.get_current_active_user),
-) -> Any:
+    current_user: models.User = Security(deps.get_current_user, scopes=["read:users"]),
+):
     """
-    Get a specific user by id.
+    Get a specific user by ID. (Admin only)
     """
-    user = crud.user.get_user(db, user_id=user_id)
-    if user == current_user:
-        return user
-    if not crud.user.is_superuser(current_user):
-        raise HTTPException(
-            status_code=403, detail="The user doesn't have enough privileges"
-        )
-    return user
-
-@router.put("/users/{user_id}", response_model=schemas.User)
-def update_user(
-    *,
-    db: Session = Depends(deps.get_db),
-    user_id: int,
-    user_in: schemas.UserUpdate,
-    current_user: models.User = Depends(deps.get_current_active_superuser),
-) -> Any:
-    """
-    Update a user.
-    """
-    user = crud.user.get_user(db, user_id=user_id)
-    if not user:
-        raise HTTPException(
-            status_code=404,
-            detail="The user with this id does not exist in the system",
-        )
-    user = crud.user.update_user(db=db, db_user=user, user_in=user_in)
-    return user
-
-@router.delete("/users/{user_id}", response_model=schemas.User)
-def delete_user(
-    *,
-    db: Session = Depends(deps.get_db),
-    user_id: int,
-    current_user: models.User = Depends(deps.get_current_active_superuser),
-) -> Any:
-    """
-    Delete a user.
-    """
-    user = crud.user.get_user(db=db, user_id=user_id)
-    if not user:
-        raise HTTPException(
-            status_code=404,
-            detail="The user with this id does not exist in the system",
-        )
-    deleted_user = crud.user.delete_user(db=db, user_id=user_id)
-    return deleted_user
-
-# --- Role Endpoints ---
-
-@router.post("/roles/", response_model=schemas.Role, status_code=status.HTTP_201_CREATED)
-def create_role(
-    *, 
-    db: Session = Depends(deps.get_db),
-    role_in: schemas.RoleCreate,
-    current_user: models.User = Depends(deps.get_current_active_superuser),
-) -> Any:
-    """
-    Create new role.
-    """
-    role = crud.user.get_role_by_name(db, name=role_in.role_name)
-    if role:
-        raise HTTPException(
-            status_code=400,
-            detail="The role with this name already exists in the system.",
-        )
-    role = crud.user.create_role(db=db, role=role_in)
-    return role
-
-@router.get("/roles/", response_model=List[schemas.Role])
-def read_roles(
-    db: Session = Depends(deps.get_db),
-    skip: int = 0,
-    limit: int = 100,
-    current_user: models.User = Depends(deps.get_current_active_superuser),
-) -> Any:
-    """
-    Retrieve roles.
-    """
-    roles = crud.user.get_roles(db, skip=skip, limit=limit)
-    return roles
-
-@router.get("/roles/{role_id}", response_model=schemas.Role)
-def read_role_by_id(
-    role_id: int,
-    db: Session = Depends(deps.get_db),
-    current_user: models.User = Depends(deps.get_current_active_superuser),
-) -> Any:
-    """
-    Get a specific role by id.
-    """
-    role = crud.user.get_role(db, role_id=role_id)
-    if not role:
-        raise HTTPException(status_code=404, detail="Role not found")
-    return role
-
-@router.put("/roles/{role_id}", response_model=schemas.Role)
-def update_role(
-    *,
-    db: Session = Depends(deps.get_db),
-    role_id: int,
-    role_in: schemas.RoleUpdate,
-    current_user: models.User = Depends(deps.get_current_active_superuser),
-) -> Any:
-    """
-    Update a role.
-    """
-    db_role = crud.user.get_role(db, role_id=role_id)
-    if not db_role:
-        raise HTTPException(
-            status_code=404,
-            detail="The role with this id does not exist in the system",
-        )
-    updated_role = crud.user.update_role(db=db, db_role=db_role, role_in=role_in)
-    return updated_role
-
-@router.delete("/roles/{role_id}", response_model=schemas.Role)
-def delete_role(
-    *,
-    db: Session = Depends(deps.get_db),
-    role_id: int,
-    current_user: models.User = Depends(deps.get_current_active_superuser),
-) -> Any:
-    """
-    Delete a role.
-    """
-    role = crud.user.get_role(db=db, role_id=role_id)
-    if not role:
-        raise HTTPException(status_code=404, detail="Role not found")
-    deleted_role = crud.user.delete_role(db=db, role_id=role_id)
-    return deleted_role
-
-# --- Permission Endpoints ---
-
-@router.post("/permissions/", response_model=schemas.Permission, status_code=status.HTTP_201_CREATED)
-def create_permission(
-    *, 
-    db: Session = Depends(deps.get_db),
-    permission_in: schemas.PermissionCreate,
-    current_user: models.User = Depends(deps.get_current_active_superuser),
-) -> Any:
-    """
-    Create new permission.
-    """
-    permission = crud.user.get_permission_by_name(db, name=permission_in.permission_name)
-    if permission:
-        raise HTTPException(
-            status_code=400,
-            detail="The permission with this name already exists in the system.",
-        )
-    permission = crud.user.create_permission(db=db, permission=permission_in)
-    return permission
-
-@router.get("/permissions/", response_model=List[schemas.Permission])
-def read_permissions(
-    db: Session = Depends(deps.get_db),
-    skip: int = 0,
-    limit: int = 100,
-    current_user: models.User = Depends(deps.get_current_active_superuser),
-) -> Any:
-    """
-    Retrieve permissions.
-    """
-    permissions = crud.user.get_permissions(db, skip=skip, limit=limit)
-    return permissions
-
-print("API endpoints for User, Role, Permission defined.")
-
+    user = crud.user.get(db, id=user_id)
+    return user 

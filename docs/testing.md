@@ -87,29 +87,24 @@ As the project matures, the following testing areas should be considered for exp
 3.  **Database Migration Tests**: Add tests to verify that Alembic migrations run correctly and do not corrupt data.
 4.  **Security Testing**: Incorporate security scanning tools to identify potential vulnerabilities in both the frontend and backend code.
 
-## Environment Limitations
+## Test Environment
 
-Due to the current sandbox environment limitations:
-
-1. **Database Integration Tests**: These tests cannot be run without a live PostgreSQL/PostGIS database, which requires Docker. The database models and schemas have been tested for structural integrity, but full integration testing requires a complete environment.
-
-2. **API Integration Tests**: Full end-to-end API tests require a running backend server with database connectivity, which is not possible in the current environment.
-
-3. **Frontend Integration with Backend**: Tests that require actual API calls to the backend are mocked in the current implementation.
+- **Backend**: The `pytest` suite is configured to run against a dedicated test database, as defined by the `TEST_DATABASE_URL` in the `.env` file. Docker must be running to provide the PostgreSQL/PostGIS service.
+- **Frontend**: The `Jest` tests run locally and mock any calls to the backend API, so no running backend is required.
 
 ## Test Data
 
 The tests use a combination of:
 
-- **Mock Data**: Simulated responses for API calls and database queries
-- **Fixture Data**: Predefined test data for consistent test execution
-- **Generated Data**: Dynamically created test data for edge cases
+- **Mock Data**: Simulated responses for API calls and database queries.
+- **Fixture Data**: Predefined test data (e.g., GeoJSON files) for consistent test execution.
+- **Generated Data**: Dynamically created test data to cover various scenarios and edge cases.
 
 ## Test Maintenance
 
 When adding new features or modifying existing ones:
 
-1. Update or add corresponding tests
-2. Ensure test coverage remains high
-3. Run the full test suite before committing changes
-4. Document any new test patterns or requirements
+1. Update or add corresponding tests.
+2. Ensure test coverage remains high.
+3. Run the full test suite before committing changes.
+4. Document any new test patterns or requirements.

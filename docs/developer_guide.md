@@ -133,7 +133,7 @@ The API is versioned under `/api/v1`.
 1.  **Environment Setup**:
     *   Use a Conda environment for consistency (`conda activate Forest`).
     *   Install dependencies: `pip install -r requirements.txt`.
-    *   Create a `.env` file from `.env.example` and configure your database connection string.
+    *   Create a `.env` file and configure your database connection string and other variables as described in the main `README.md`.
 
 2.  **Database Migrations**:
     *   To generate a new migration script after changing SQLAlchemy models:
@@ -188,7 +188,7 @@ The API is versioned under `/api/v1`.
 
 ## Troubleshooting
 
--   **CORS Errors**: Ensure the frontend origin (`http://localhost:3000`) is listed in the `BACKEND_CORS_ORIGINS` in your backend's `.env` file.
+-   **CORS Errors**: Ensure the frontend origin (`http://localhost:3000`) is correctly configured in the backend. This is typically handled in the FastAPI application setup.
 -   **Database Connection Errors**: Double-check the `DATABASE_URL` in your `.env` file and ensure the PostgreSQL container is running.
 -   **Alembic "Target metadata is not a dict"**: Ensure all new SQLAlchemy models are imported into `app/db/base.py` so that Alembic can detect them.
 -   **Frontend `401 Unauthorized`**: Check that the `Authorization` header with the Bearer token is being sent correctly with API requests after login.

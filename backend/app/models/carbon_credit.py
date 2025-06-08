@@ -1,50 +1,30 @@
-# Models for Carbon Credit Calculation Results
-
-from sqlalchemy import Column, Integer, String, Numeric, ForeignKey, DateTime, func, JSON
+import uuid
+import enum
+from sqlalchemy import Column, String, DateTime, ForeignKey, Enum as SQLEnum, Float, Integer
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
-
+from sqlalchemy.sql import func
 from app.db.session import Base
+
+class CreditStatus(str, enum.Enum):
+    ISSUED = "Issued"
+    LISTED = "Listed" # for P2P marketplace
+    SOLD = "Sold"
+    RETIRED = "Retired"
 
 class CarbonCredit(Base):
     __tablename__ = "carbon_credits"
-    __table_args__ = {"schema": "calculation"}
+    __table_args__ = {"schema": "carbon_mgmt"}
 
-    credit_id = Column(Integer, primary_key=True, index=True)
-    # Foreign keys to link calculation to project, forest, plot, species
-    project_id = Column(Integer, ForeignKey("project_mgmt.projects.project_id"), nullable=False, index=True)
-    forest_id = Column(Integer, ForeignKey("spatial.forest_boundaries.forest_id"), nullable=True, index=True)
-    plot_id = Column(Integer, ForeignKey("spatial.forest_plots.plot_id", ondelete="SET NULL"), nullable=True, index=True)
-    species_id = Column(Integer, ForeignKey("reference.tree_species.species_id", ondelete="SET NULL"), nullable=True, index=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id = Column(UUID(as_uuid=True), ForeignKey("project_mgmt.projects.id"), nullable=False)
+    vcs_serial_number = Column(String(255), unique=True, index=True, nullable=False)
+    quantity_co2e = Column(Float, nullable=False) # in metric tons
+    vintage_year = Column(Integer, nullable=False)
+    status = Column(SQLEnum(CreditStatus), default=CreditStatus.ISSUED, nullable=False)
+    issuance_date = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    # Link to the specific carbon stock calculation and baseline used
-    carbon_id = Column(Integer, ForeignKey("calculation.carbon_stock.carbon_id"), nullable=False)
-    baseline_id = Column(Integer, ForeignKey("calculation.baseline.baseline_id"), nullable=False)
-
-    calculation_level = Column(String(20), nullable=False, default="forest", index=True) # 'forest', 'plot', 'plot_species'
-    calculation_date = Column(DateTime(timezone=True), server_default=func.now())
-    emission_reduction = Column(Numeric(15, 2)) # Emission reduction in tonnes C
-    emission_reduction_co2e = Column(Numeric(15, 2)) # Emission reduction in tonnes CO2e
-    buffer_percentage = Column(Numeric(5, 2)) # Buffer percentage applied
-    buffer_amount = Column(Numeric(15, 2)) # Buffer amount withheld in tonnes CO2e
-    leakage_factor = Column(Numeric(5, 4)) # Leakage factor applied (e.g., 0.1 for 10%)
-    leakage_deduction = Column(Numeric(15, 2)) # Leakage deduction in tonnes CO2e
-    uncertainty_deduction = Column(Numeric(15, 2)) # Deduction due to uncertainty (if applicable)
-    creditable_amount = Column(Numeric(15, 2)) # Net creditable amount in tonnes CO2e
-    methodology = Column(String(50)) # Methodology used (e.g., 'VCS_VM0015')
-    uncertainty = Column(Numeric(5, 2)) # Combined uncertainty percentage for the delta
-    verification_status = Column(String(20), default="pending") # e.g., 'pending', 'verified', 'rejected'
-    verified_by = Column(Integer, ForeignKey("user_mgmt.users.user_id"))
-    verified_at = Column(DateTime(timezone=True))
-    created_by = Column(Integer, ForeignKey("user_mgmt.users.user_id"))
-
-    # Relationships
-    project = relationship("Project") # Assuming Project model exists
-    forest = relationship("ForestBoundary") # Assuming ForestBoundary model exists
-    plot = relationship("ForestPlot", back_populates="carbon_credit_calculations")
-    species = relationship("TreeSpecies") # Assuming TreeSpecies model exists
-    creator = relationship("User") # Assuming User model exists
-    verifier = relationship("User", foreign_keys=[verified_by])
-    # Link back to the specific carbon stock and baseline calculations
-    carbon_stock_calculation = relationship("CarbonStock", back_populates="carbon_credit_calculation")
-    baseline_calculation = relationship("Baseline", back_populates="carbon_credit_calculations")
-
+    project = relationship("Project", back_populates="carbon_credits")
+    p2p_listing = relationship("P2PListing", back_populates="credit", uselist=False) 

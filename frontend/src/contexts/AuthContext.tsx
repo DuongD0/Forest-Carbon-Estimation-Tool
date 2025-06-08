@@ -1,84 +1,36 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext } from 'react';
+import { useAuth0, Auth0ContextInterface, AppState } from '@auth0/auth0-react';
 
-// Define the authentication context type
-interface AuthContextType {
-  isAuthenticated: boolean;
-  user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
-  logout: () => void;
-}
+// Create a context to hold the auth state
+const AuthContext = createContext<Auth0ContextInterface | null>(null);
 
-// Define the user type
-export interface User {
-  id: number;
-  email: string;
-  name: string;
-  role: string;
-}
+// Custom hook to use the auth context
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
 
-// Create the context with a default value
-const AuthContext = createContext<AuthContextType>({
-  isAuthenticated: false,
-  user: null,
-  login: async () => false,
-  logout: () => {},
-});
-
-// Auth provider props
 interface AuthProviderProps {
-  children: ReactNode;
+  children: React.ReactNode;
 }
 
-// Auth provider component
-export const AuthProvider = ({ children }: AuthProviderProps) => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [user, setUser] = useState<User | null>(null);
+// The provider component
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const auth0 = useAuth0();
 
-  // Login function
-  const login = async (email: string, password: string): Promise<boolean> => {
-    try {
-      // In a real implementation, this would make an API call to the backend
-      // For now, we'll simulate a successful login with mock data
-      console.log(`Login attempt with email: ${email}`);
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock successful login
-      const mockUser: User = {
-        id: 1,
-        email,
-        name: 'Forest Manager',
-        role: 'admin',
-      };
-      
-      setUser(mockUser);
-      setIsAuthenticated(true);
-      
-      // Store auth token in localStorage (in a real app)
-      localStorage.setItem('authToken', 'mock-jwt-token');
-      
-      return true;
-    } catch (error) {
-      console.error('Login failed:', error);
-      return false;
-    }
+  // The onRedirectCallback is used to handle the user's return to the application after login.
+  // We don't need to do anything special here, but it's required by the provider.
+  const onRedirectCallback = (appState?: AppState) => {
+    // This could be used to redirect the user to a specific page after login.
+    // For now, we'll let Auth0 handle the redirect back to the page they were on.
   };
 
-  // Logout function
-  const logout = () => {
-    setUser(null);
-    setIsAuthenticated(false);
-    localStorage.removeItem('authToken');
-  };
-
-  // Provide the auth context to children components
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
+    <AuthContext.Provider value={auth0}>
       {children}
     </AuthContext.Provider>
   );
 };
-
-// Custom hook to use the auth context
-export const useAuth = () => useContext(AuthContext);

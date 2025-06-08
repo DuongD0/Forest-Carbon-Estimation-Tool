@@ -1,58 +1,65 @@
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from typing import List, Any, Optional
+from fastapi import APIRouter, Depends, HTTPException, Security, File, UploadFile, Query
 from sqlalchemy.orm import Session
-from typing import List, Any
+from shapely.geometry import shape
+import numpy as np
+import cv2
+import zipfile
+import io
+import geopandas as gpd
+import tempfile
+import os
 
-from app import schemas, crud, models
+from app import crud, models, schemas
 from app.api import deps
 from app.processing.carbon_calculator import CarbonCalculator
+from app.services.serial_number_generator import serial_number_generator
 
 router = APIRouter()
-
-@router.post("/", response_model=schemas.Project, status_code=status.HTTP_201_CREATED)
-def create_project(
-    *,
-    db: Session = Depends(deps.get_db),
-    project_in: schemas.ProjectCreate,
-    current_user: models.User = Depends(deps.get_current_active_user),
-) -> Any:
-    """
-    Create new project.
-    """
-    try:
-        project = crud.project.create_project(db=db, project=project_in, owner_id=current_user.user_id)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    return project
 
 @router.get("/", response_model=List[schemas.Project])
 def read_projects(
     db: Session = Depends(deps.get_db),
     skip: int = 0,
     limit: int = 100,
-    current_user: models.User = Depends(deps.get_current_active_user),
+    project_type: Optional[str] = Query(None),
+    current_user: models.User = Depends(deps.get_current_user),
 ) -> Any:
     """
     Retrieve projects for the current user.
     """
-    if crud.user.is_superuser(current_user):
-        projects = crud.project.get_projects(db, skip=skip, limit=limit)
-    else:
-        projects = crud.project.get_projects_by_owner(db, owner_id=current_user.user_id, skip=skip, limit=limit)
+    projects = crud.project.get_multi_by_owner(
+        db=db, owner_id=current_user.id, skip=skip, limit=limit, project_type=project_type
+    )
     return projects
 
-@router.get("/{project_id}", response_model=schemas.Project)
-def read_project_by_id(
-    project_id: int,
+@router.post("/", response_model=schemas.Project)
+def create_project(
+    *,
     db: Session = Depends(deps.get_db),
-    current_user: models.User = Depends(deps.get_current_active_user),
+    project_in: schemas.ProjectCreate,
+    current_user: models.User = Depends(deps.get_current_user),
 ) -> Any:
     """
-    Get a specific project by id.
+    Create new project for the current user.
     """
-    project = crud.project.get_project(db, project_id=project_id)
+    project = crud.project.create_with_owner(db=db, obj_in=project_in, owner_id=current_user.id)
+    return project
+
+@router.get("/{project_id}", response_model=schemas.Project)
+def read_project(
+    *,
+    db: Session = Depends(deps.get_db),
+    project_id: str,
+    current_user: models.User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Get project by ID.
+    """
+    project = crud.project.get(db=db, id=project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    if not crud.user.is_superuser(current_user) and (project.owner_id != current_user.user_id):
+    if project.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
     return project
 
@@ -60,78 +67,172 @@ def read_project_by_id(
 def update_project(
     *,
     db: Session = Depends(deps.get_db),
-    project_id: int,
+    project_id: str,
     project_in: schemas.ProjectUpdate,
-    current_user: models.User = Depends(deps.get_current_active_user),
+    current_user: models.User = Depends(deps.get_current_user),
 ) -> Any:
     """
     Update a project.
     """
-    db_project = crud.project.get_project(db, project_id=project_id)
-    if not db_project:
-        raise HTTPException(
-            status_code=404,
-            detail="The project with this id does not exist in the system",
-        )
-    if not crud.user.is_superuser(current_user) and (db_project.owner_id != current_user.user_id):
+    project = crud.project.get(db=db, id=project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if project.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
-    try:
-        project = crud.project.update_project(db=db, db_project=db_project, project_in=project_in)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    project = crud.project.update(db=db, db_obj=project, obj_in=project_in)
     return project
 
 @router.delete("/{project_id}", response_model=schemas.Project)
 def delete_project(
     *,
     db: Session = Depends(deps.get_db),
-    project_id: int,
-    current_user: models.User = Depends(deps.get_current_active_user),
+    project_id: str,
+    current_user: models.User = Depends(deps.get_current_user),
 ) -> Any:
     """
     Delete a project.
     """
-    project = crud.project.get_project(db=db, project_id=project_id)
+    project = crud.project.get(db=db, id=project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    if not crud.user.is_superuser(current_user) and (project.owner_id != current_user.user_id):
+    if project.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
-    deleted_project = crud.project.delete_project(db=db, project_id=project_id)
-    return deleted_project
+    project = crud.project.remove(db=db, id=project_id)
+    return project
 
-@router.post("/{project_id}/calculate", response_model=schemas.ProjectCalculationResponse, status_code=status.HTTP_202_ACCEPTED)
-def calculate_project_carbon(
+@router.put("/{project_id}/geometry", response_model=schemas.Project)
+def set_project_geometry(
     *,
     db: Session = Depends(deps.get_db),
-    project_id: int,
-    background_tasks: BackgroundTasks,
-    current_user: models.User = Depends(deps.get_current_active_user),
+    project_id: str,
+    geometry: schemas.GeoJSON,
+    current_user: models.User = Depends(deps.get_current_user),
 ) -> Any:
     """
-    Triggers the carbon credit calculation for a specific project as a background task.
+    Set or update the geometry for a project.
     """
-    project = crud.project.get_project(db, project_id=project_id)
+    project = crud.project.get(db=db, id=project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    if not crud.user.is_superuser(current_user) and (project.owner_id != current_user.user_id):
+    if project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
+    
+    # Convert GeoJSON to WKT for GeoAlchemy2
+    geom = shape(geometry.dict())
+    project.location_geometry = geom.wkt
+    
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+    return project
+
+@router.post("/{project_id}/calculate_carbon", response_model=float)
+async def calculate_carbon(
+    *,
+    db: Session = Depends(deps.get_db),
+    project_id: str,
+    current_user: models.User = Depends(deps.get_current_user),
+    image: UploadFile = File(...),
+) -> Any:
+    """
+    Trigger carbon stock calculation for a project from an uploaded image.
+    """
+    project = crud.project.get(db=db, id=project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if project.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
-    def run_calculation_task(db_session: Session, proj_id: int):
-        """Wrapper function to be run in the background."""
-        try:
-            calculator = CarbonCalculator(db_session=db_session, project_id=proj_id)
-            calculator.run_full_calculation()
-        except Exception as e:
-            # A more robust system would update the project status to 'FAILED' in the DB
-            print(f"Background calculation failed for project {proj_id}: {e}")
+    # Read the uploaded image file into a NumPy array
+    contents = await image.read()
+    nparr = np.fromstring(contents, np.uint8)
+    img_np = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-    background_tasks.add_task(run_calculation_task, db, project_id)
+    calculator = CarbonCalculator(db=db, project=project)
+    try:
+        carbon_stock = calculator.calculate_carbon_stock(image=img_np)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+        
+    return carbon_stock
 
-    return {
-        "project_id": project_id,
-        "status": "Accepted",
-        "message": "Carbon calculation has been initiated in the background. Results will be saved upon completion.",
-    }
+@router.put("/{project_id}/shapefile", response_model=schemas.Project)
+async def upload_shapefile(
+    *,
+    db: Session = Depends(deps.get_db),
+    project_id: str,
+    current_user: models.User = Depends(deps.get_current_user),
+    file: UploadFile = File(...),
+) -> Any:
+    """
+    Upload a zipped shapefile to define project geometry.
+    """
+    project = crud.project.get(db=db, id=project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    if project.owner_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
 
-print("API endpoints for Project defined.")
+    if not file.filename.endswith('.zip'):
+        raise HTTPException(status_code=400, detail="File must be a .zip archive")
 
+    try:
+        with zipfile.ZipFile(io.BytesIO(await file.read()), 'r') as zip_ref:
+            # Find the .shp file in the zip
+            shp_name = next((name for name in zip_ref.namelist() if name.endswith('.shp')), None)
+            if not shp_name:
+                raise HTTPException(status_code=400, detail="No .shp file found in the zip archive")
+            
+            gdf = gpd.read_file(f"/vsizip/{file.filename}/{shp_name}", vfs=f"zip://{file.filename}")
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error reading shapefile: {e}")
+
+    if gdf.empty:
+        raise HTTPException(status_code=400, detail="Shapefile contains no geometries")
+    
+    # We'll take the first geometry from the shapefile
+    geom = gdf.geometry.iloc[0]
+
+    # Update project geometry
+    project.location_geometry = geom.wkt
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+    
+    return project
+
+@router.post("/{project_id}/issue-credits", response_model=schemas.CarbonCredit)
+def issue_carbon_credits(
+    *,
+    db: Session = Depends(deps.get_db),
+    project_id: str,
+    issuance_request: schemas.CreditIssuanceRequest,
+    current_user: models.User = Security(deps.get_current_user, scopes=["manage:credits"]),
+) -> Any:
+    """
+    Issue new carbon credits for a project. (Admin only)
+    """
+    project = crud.project.get(db=db, id=project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    # Ensure the project_id in the path matches the one in the body
+    if str(issuance_request.project_id) != project_id:
+        raise HTTPException(status_code=400, detail="Project ID mismatch")
+
+    # Generate the serial number
+    serial_number = serial_number_generator.generate(
+        project=project,
+        vintage_year=issuance_request.vintage_year,
+        quantity=int(issuance_request.quantity_co2e)
+    )
+
+    # Create the credit object
+    credit_in = schemas.CarbonCreditCreate(
+        **issuance_request.dict(),
+        vcs_serial_number=serial_number
+    )
+
+    credit = crud.carbon_credit.create(db=db, obj_in=credit_in)
+    return credit 
