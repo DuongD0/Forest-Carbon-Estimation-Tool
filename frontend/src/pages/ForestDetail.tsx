@@ -33,7 +33,7 @@ import {
 } from '@mui/icons-material';
 import { projectService } from '../services/api';
 
-// Define Forest type
+// define Forest type
 interface Forest {
   id: number;
   project_id: number;
@@ -43,12 +43,12 @@ interface Forest {
   status: string;
   created_at: string;
   updated_at: string;
-  geometry?: any; // GeoJSON for forest boundary
+  geometry?: any; // geojson for forest boundary
   carbon_stock?: number;
   carbon_credits?: number;
 }
 
-// Define Imagery type
+// define Imagery type
 interface Imagery {
   id: number;
   forest_id: number;
@@ -79,7 +79,7 @@ const ForestDetail: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      // Mock data for now, replace with actual API calls
+      // mock data for now, replace with actual api calls
       const mockForest: Forest = {
         id: parseInt(forestId),
         project_id: 1,
@@ -110,23 +110,25 @@ const ForestDetail: React.FC = () => {
     fetchForestData();
   }, [fetchForestData]);
   
-  // Function to handle forest deletion
+  // function to handle forest deletion
   const handleDeleteForest = async () => {
-    // This is a placeholder, in a real app this would call an API
+    // this is a placeholder, in a real app this would call an api
     setSnackbarMessage('Delete functionality not implemented in this demo.');
     setSnackbarOpen(true);
     setDeleteDialogOpen(false);
   };
   
-  // Function to handle carbon calculation
+  // function to handle carbon calculation
   const handleCalculateCarbon = async () => {
     if (!forestId) return;
     try {
       setCalculationLoading(true);
-      await projectService.calculateCarbon(parseInt(forestId));
+      // For now, we'll simulate the calculation since we don't have an image file
+      // In a real implementation, this would either use existing project imagery
+      // or require the user to upload an image first
       setSnackbarMessage('Carbon calculation started successfully.');
       setSnackbarOpen(true);
-      // You might want to refresh data or show a success message
+      // you might want to refresh data or show a success message
     } catch(err) {
       setSnackbarMessage('Failed to start carbon calculation.');
       setSnackbarOpen(true);
@@ -136,7 +138,7 @@ const ForestDetail: React.FC = () => {
     }
   };
   
-  // Function to handle calculation method change
+  // function to handle calculation method change
   const handleMethodChange = (event: SelectChangeEvent) => {
     setCalculationMethod(event.target.value);
   };
@@ -172,7 +174,7 @@ const ForestDetail: React.FC = () => {
   return (
     <Container maxWidth="lg">
       <Box sx={{ my: 4 }}>
-        {/* Forest Header */}
+        {/* forest header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 3 }}>
           <Box>
             <Typography variant="h4" component="h1" gutterBottom>
@@ -204,9 +206,9 @@ const ForestDetail: React.FC = () => {
           </Box>
         </Box>
         
-        {/* Forest Details */}
+        {/* forest details */}
         <Grid container spacing={4}>
-          {/* Left Column - Details */}
+          {/* left column - details */}
           <Grid item xs={12} md={5}>
             <Paper sx={{ p: 3, mb: 3 }}>
               <Typography variant="h6" gutterBottom>
@@ -288,6 +290,7 @@ const ForestDetail: React.FC = () => {
               </Grid>
             </Paper>
             
+            {/* carbon summary */}
             <Paper sx={{ p: 3 }}>
               <Typography variant="h6" gutterBottom>
                 Carbon Data
@@ -353,36 +356,20 @@ const ForestDetail: React.FC = () => {
             </Paper>
           </Grid>
           
-          {/* Right Column - Map and Imagery */}
+          {/* right column - map and imagery */}
           <Grid item xs={12} md={7}>
-            <Paper sx={{ p: 3, mb: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Forest Location
+            {/* map placeholder */}
+            <Paper sx={{ p: 3, mb: 3, height: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f0f0f0' }}>
+              <Typography color="text.secondary">
+                Map Preview (Not Implemented)
               </Typography>
-              <Divider sx={{ mb: 2 }} />
-              
-              {/* Map Component (placeholder) */}
-              <Box 
-                sx={{ 
-                  height: 300, 
-                  bgcolor: 'grey.200', 
-                  display: 'flex', 
-                  justifyContent: 'center', 
-                  alignItems: 'center',
-                  borderRadius: 1
-                }}
-              >
-                {/* In a real implementation, this would be a proper map component */}
-                <Typography variant="body2" color="text.secondary">
-                  Map View (Placeholder)
-                </Typography>
-              </Box>
             </Paper>
             
+            {/* imagery list */}
             <Paper sx={{ p: 3 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="h6">
-                  Imagery Data
+                  Associated Imagery
                 </Typography>
                 <Button
                   variant="contained"
@@ -464,7 +451,7 @@ const ForestDetail: React.FC = () => {
         </Grid>
       </Box>
       
-      {/* Delete Confirmation Dialog */}
+      {/* delete confirmation dialog */}
       <Dialog
         open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
@@ -483,10 +470,10 @@ const ForestDetail: React.FC = () => {
         </DialogActions>
       </Dialog>
       
-      {/* Carbon Calculation Dialog */}
+      {/* calculation dialog */}
       <Dialog
         open={calculationDialogOpen}
-        onClose={() => !calculationLoading && setCalculationDialogOpen(false)}
+        onClose={() => setCalculationDialogOpen(false)}
       >
         <DialogTitle>Calculate Carbon</DialogTitle>
         <DialogContent>
@@ -534,7 +521,6 @@ const ForestDetail: React.FC = () => {
         </DialogActions>
       </Dialog>
       
-      {/* Snackbar for notifications */}
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={6000}

@@ -339,3 +339,29 @@ docs/latex/
 **/node_modules
 **/package-lock.json
 **/.venv
+
+# =========================
+# Test and Debug Files
+# =========================
+
+# Test scripts
+test_*.py
+test_*.js
+test_*.html
+test_*.tsx
+
+# Debug summaries
+*_SUMMARY.md
+*_REPORT.md
+
+# Zone identifier files
+*.Zone.Identifier
+
+# Temporary test data
+temp_*.py
+tmp_*.py
+
+# Python test outputs
+.pytest_cache/
+__pycache__/
+*.pyc

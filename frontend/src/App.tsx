@@ -1,7 +1,6 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "./contexts/AuthContext";
-import { withAuthenticationRequired } from "@auth0/auth0-react";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Layout from "./components/Layout";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -11,15 +10,24 @@ import ForestDetail from "./pages/ForestDetail";
 import ImageryDetail from "./pages/ImageryDetail";
 import CarbonCalculation from "./pages/CarbonCalculation";
 import Marketplace from "./pages/Marketplace";
+import Reports from "./pages/Reports";
+import ImageUploadPage from "./pages/ImageUploadPage";
 
 interface PrivateRouteProps {
   component: React.ComponentType;
 }
 
-const PrivateRoute: React.FC<PrivateRouteProps> = ({ component }) => {
-  const Component = withAuthenticationRequired(component, {
-    // You can add a custom loading component here
-  });
+const PrivateRoute: React.FC<PrivateRouteProps> = ({ component: Component }) => {
+  const { isAuthenticated, isLoading } = useAuth();
+  
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+  
   return <Component />;
 };
 
@@ -43,6 +51,10 @@ const App: React.FC = () => {
               element={<PrivateRoute component={ProjectDetail} />}
             />
             <Route
+              path="/reports"
+              element={<PrivateRoute component={Reports} />}
+            />
+            <Route
               path="/forests/:forestId"
               element={<PrivateRoute component={ForestDetail} />}
             />
@@ -58,8 +70,12 @@ const App: React.FC = () => {
               path="/marketplace"
               element={<PrivateRoute component={Marketplace} />}
             />
-            {/* Redirect root to dashboard */}
-            <Route path="/" element={<Navigate to="/" />} />
+            <Route
+              path="/upload-images"
+              element={<PrivateRoute component={ImageUploadPage} />}
+            />
+            {/* redirect to dashboard */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Layout>
       </AuthProvider>

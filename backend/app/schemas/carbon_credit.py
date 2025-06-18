@@ -10,11 +10,11 @@ class CarbonCreditBase(BaseModel):
     vintage_year: Optional[int] = None
     status: Optional[CreditStatus] = CreditStatus.ISSUED
 
-# Schema for the API request to issue credits.
-# The project_id comes from the URL path.
-# The serial number is generated automatically.
+# schema for the api request to issue credits.
+# project_id is from the url path.
+# serial number is generated on the fly.
 class CreditIssuanceRequest(BaseModel):
-    """Schema for an admin's request to issue credits."""
+    """schema for an admin's request to issue credits."""
     project_id: uuid.UUID
     quantity_co2e: float
     vintage_year: int

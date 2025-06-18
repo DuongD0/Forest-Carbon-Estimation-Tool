@@ -10,6 +10,6 @@ class AnalyticsEvent(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     event_type = Column(String(255), index=True, nullable=False)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("user_mgmt.users.id"), nullable=True) # Can be null for anonymous events
+    user_id = Column(UUID(as_uuid=True), ForeignKey("user_mgmt.users.id"), nullable=True) # can be null for anonymous users
     details = Column(JSONB)
     created_at = Column(DateTime(timezone=True), server_default=func.now()) 

@@ -18,9 +18,10 @@ def read_active_listings(
     limit: int = 100,
 ) -> Any:
     """
-    Retrieve all active P2P listings.
+    get all active p2p listings
     """
-    listings = crud.p2p_listing.get_multi(db, skip=skip, limit=limit) # Needs filtering for active
+    # TODO: this needs to be filtered for active status only
+    listings = crud.p2p_listing.get_multi(db, skip=skip, limit=limit) 
     return listings
 
 @router.post("/listings", response_model=schemas.P2PListing)
@@ -31,9 +32,9 @@ def create_listing(
     current_user: models.User = Depends(deps.get_current_user),
 ) -> Any:
     """
-    Create a new P2P listing for a carbon credit.
+    make a new p2p listing for a credit.
     """
-    # 1. Verify the credit exists and is owned by the current user
+    # check the credit is real and i own it
     credit = crud.carbon_credit.get(db, id=listing_in.credit_id)
     if not credit:
         raise HTTPException(status_code=404, detail="Carbon credit not found")
@@ -42,14 +43,14 @@ def create_listing(
     if not project or project.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to list this credit")
 
-    # 2. Check if the credit is already listed or sold
+    # check if i can actually list it
     if credit.status != CreditStatus.ISSUED:
         raise HTTPException(status_code=400, detail=f"Credit has status '{credit.status}' and cannot be listed.")
 
-    # 3. Create the listing
+    # ok, create the listing
     listing = crud.p2p_listing.create_with_seller(db=db, obj_in=listing_in, seller_id=current_user.id)
     
-    # 4. Update the credit status
+    # and update the credit to show it's listed now
     crud.carbon_credit.update(db=db, db_obj=credit, obj_in={"status": CreditStatus.LISTED})
 
     return listing
@@ -63,7 +64,7 @@ def purchase_credits(
     current_user: models.User = Depends(deps.get_current_user),
 ) -> Any:
     """
-    Purchase carbon credits from a P2P listing.
+    buy credits from a p2p listing.
     """
     listing = crud.p2p_listing.get(db, id=listing_id)
     if not listing or listing.status != ListingStatus.ACTIVE:
@@ -75,7 +76,7 @@ def purchase_credits(
     if purchase_in.quantity > listing.quantity:
         raise HTTPException(status_code=400, detail="Not enough credits in listing")
 
-    # 1. Create a transaction record
+    # make a transaction record first
     total_price = purchase_in.quantity * listing.price_per_ton
     transaction = crud.transaction.create(db, obj_in={
         "listing_id": listing_id,
@@ -86,22 +87,23 @@ def purchase_credits(
         "status": TransactionStatus.PENDING
     })
 
-    # 2. Process payment with Stripe
+    # now try to take payment with stripe
     try:
         charge = stripe_service.create_charge(
-            amount=int(total_price * 100), # Stripe expects cents
+            amount=int(total_price * 100), # stripe wants cents
             description=f"Purchase of {purchase_in.quantity} carbon credits"
         )
-        # 3. Update transaction with Stripe charge ID and set to completed
+        # if payment is ok, update transaction
         transaction = crud.transaction.update(db, db_obj=transaction, obj_in={
             "status": TransactionStatus.COMPLETED,
             "stripe_charge_id": charge.id
         })
     except ValueError as e:
+        # if payment fails, mark it as failed
         crud.transaction.update(db, db_obj=transaction, obj_in={"status": TransactionStatus.FAILED})
         raise HTTPException(status_code=402, detail=f"Payment failed: {e}")
 
-    # 4. Update listing quantity and status
+    # update the listing with new quantity
     remaining_quantity = listing.quantity - purchase_in.quantity
     new_status = ListingStatus.SOLD if remaining_quantity == 0 else ListingStatus.ACTIVE
     crud.p2p_listing.update(db, db_obj=listing, obj_in={
@@ -109,7 +111,7 @@ def purchase_credits(
         "status": new_status
     })
 
-    # 5. If listing is sold out, update the original carbon credit's status
+    # if we sold all of it, mark credit as sold
     if new_status == ListingStatus.SOLD:
         credit = crud.carbon_credit.get(db, id=listing.credit_id)
         crud.carbon_credit.update(db, db_obj=credit, obj_in={"status": CreditStatus.SOLD})

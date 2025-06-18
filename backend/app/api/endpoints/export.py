@@ -16,24 +16,24 @@ def export_project_as_geojson(
     current_user: models.User = Depends(deps.get_current_user),
 ):
     """
-    Export a project's geometry as a GeoJSON Feature.
+    get a project's geometry as a geojson thingy
     """
     project = crud.project.get(db=db, id=project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
     
-    # Optional: Check if the user has permission to view this project
+    # check if user is allowed to see this
     if project.owner_id != current_user.id:
-        # Or if it's a public project, etc.
+        # or if it's a public project or whatever
         raise HTTPException(status_code=403, detail="Not enough permissions")
 
     if not project.location_geometry:
         raise HTTPException(status_code=404, detail="Project does not have a geometry to export.")
 
-    # Convert the WKBElement to a Shapely geometry object
+    # convert the wkb thing to a shapely geometry
     geom = to_shape(project.location_geometry)
 
-    # Create a GeoJSON Feature dictionary
+    # make a geojson feature dict
     feature = {
         "type": "Feature",
         "geometry": mapping(geom),

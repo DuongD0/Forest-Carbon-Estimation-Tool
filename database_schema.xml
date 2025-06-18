@@ -1,0 +1,131 @@
+<database>
+  <schema name="user_mgmt">
+    <table name="users">
+      <columns>
+        <column name="id" type="UUID" primary_key="true" default="uuid.uuid4"/>
+        <column name="email" type="String(100)" unique="true" index="true" nullable="false"/>
+        <column name="first_name" type="String(50)" nullable="true"/>
+        <column name="last_name" type="String(50)" nullable="true"/>
+        <column name="organization" type="String(100)" nullable="true"/>
+        <column name="is_active" type="Boolean" default="true"/>
+        <column name="stripe_customer_id" type="String(255)" unique="true" nullable="true"/>
+        <column name="created_at" type="DateTime(timezone=True)" server_default="func.now()"/>
+        <column name="updated_at" type="DateTime(timezone=True)" server_default="func.now()" onupdate="func.now()"/>
+      </columns>
+      <relationships>
+        <relationship type="one-to-many" to_table="project_mgmt.projects" back_populates="owner" name="projects"/>
+        <relationship type="one-to-many" to_table="p2p_marketplace.p2p_listings" back_populates="seller" name="listings"/>
+        <relationship type="one-to-many" to_table="p2p_marketplace.transactions" back_populates="buyer" name="transactions_as_buyer" foreign_keys="Transaction.buyer_id"/>
+        <relationship type="one-to-many" to_table="p2p_marketplace.transactions" back_populates="seller" name="transactions_as_seller" foreign_keys="Transaction.seller_id"/>
+        <relationship type="many-to-many" to_table="project_mgmt.projects" secondary_table="user_mgmt.project_bookmarks" back_populates="bookmarked_by" name="bookmarked_projects"/>
+      </relationships>
+    </table>
+    <table name="project_bookmarks">
+      <columns>
+        <column name="user_id" type="UUID" foreign_key="user_mgmt.users.id" primary_key="true"/>
+        <column name="project_id" type="UUID" foreign_key="project_mgmt.projects.id" primary_key="true"/>
+        <column name="created_at" type="DateTime(timezone=True)" server_default="func.now()"/>
+      </columns>
+    </table>
+  </schema>
+  <schema name="project_mgmt">
+    <table name="projects">
+      <columns>
+        <column name="id" type="UUID" primary_key="true" default="uuid.uuid4"/>
+        <column name="name" type="String(255)" nullable="false" index="true"/>
+        <column name="description" type="Text" nullable="true"/>
+        <column name="project_type" type="Enum('Forestry')" nullable="false"/>
+        <column name="status" type="Enum('Draft', 'Under Review', 'Active', 'Completed', 'Rejected')" default="Draft" nullable="false"/>
+        <column name="owner_id" type="UUID" foreign_key="user_mgmt.users.id" nullable="false"/>
+        <column name="ecosystem_id" type="UUID" foreign_key="carbon_mgmt.ecosystems.id" nullable="true"/>
+        <column name="location_geometry" type="Geometry(geometry_type='POLYGON', srid=4326)" nullable="true"/>
+        <column name="created_at" type="DateTime(timezone=True)" server_default="func.now()"/>
+        <column name="updated_at" type="DateTime(timezone=True)" server_default="func.now()" onupdate="func.now()"/>
+      </columns>
+      <relationships>
+        <relationship type="many-to-one" to_table="user_mgmt.users" back_populates="projects" name="owner"/>
+        <relationship type="many-to-one" to_table="carbon_mgmt.ecosystems" name="ecosystem"/>
+        <relationship type="one-to-many" to_table="carbon_mgmt.carbon_credits" back_populates="project" name="carbon_credits"/>
+        <relationship type="many-to-many" to_table="user_mgmt.users" secondary_table="user_mgmt.project_bookmarks" back_populates="bookmarked_projects" name="bookmarked_by"/>
+      </relationships>
+    </table>
+  </schema>
+  <schema name="carbon_mgmt">
+    <table name="ecosystems">
+        <columns>
+            <column name="id" type="UUID" primary_key="true" default="uuid.uuid4"/>
+            <column name="name" type="String(255)" unique="true" index="true" nullable="false"/>
+            <column name="description" type="String" nullable="true"/>
+            <column name="carbon_factor" type="Float" nullable="false" comment="tCO2e per hectare per year"/>
+            <column name="biomass_factor" type="Float" nullable="false" comment="biomass per hectare"/>
+        </columns>
+    </table>
+    <table name="carbon_credits">
+        <columns>
+            <column name="id" type="UUID" primary_key="true" default="uuid.uuid4"/>
+            <column name="project_id" type="UUID" foreign_key="project_mgmt.projects.id" nullable="false"/>
+            <column name="vcs_serial_number" type="String(255)" unique="true" index="true" nullable="false"/>
+            <column name="quantity_co2e" type="Float" nullable="false" comment="in metric tons"/>
+            <column name="vintage_year" type="Integer" nullable="false"/>
+            <column name="status" type="Enum('Issued', 'Listed', 'Sold', 'Retired')" default="Issued" nullable="false"/>
+            <column name="issuance_date" type="DateTime(timezone=True)" server_default="func.now()"/>
+            <column name="created_at" type="DateTime(timezone=True)" server_default="func.now()"/>
+            <column name="updated_at" type="DateTime(timezone=True)" server_default="func.now()" onupdate="func.now()"/>
+        </columns>
+        <relationships>
+            <relationship type="many-to-one" to_table="project_mgmt.projects" back_populates="carbon_credits" name="project"/>
+            <relationship type="one-to-one" to_table="p2p_marketplace.p2p_listings" back_populates="credit" name="p2p_listing"/>
+        </relationships>
+    </table>
+  </schema>
+  <schema name="p2p_marketplace">
+    <table name="p2p_listings">
+        <columns>
+            <column name="id" type="UUID" primary_key="true" default="uuid.uuid4"/>
+            <column name="credit_id" type="UUID" foreign_key="carbon_mgmt.carbon_credits.id" unique="true" nullable="false"/>
+            <column name="seller_id" type="UUID" foreign_key="user_mgmt.users.id" nullable="false"/>
+            <column name="price_per_ton" type="Float" nullable="false"/>
+            <column name="quantity" type="Float" nullable="false"/>
+            <column name="status" type="Enum('Active', 'Sold', 'Cancelled')" default="Active" nullable="false"/>
+            <column name="created_at" type="DateTime(timezone=True)" server_default="func.now()"/>
+            <column name="updated_at" type="DateTime(timezone=True)" server_default="func.now()" onupdate="func.now()"/>
+        </columns>
+        <relationships>
+            <relationship type="one-to-one" to_table="carbon_mgmt.carbon_credits" back_populates="p2p_listing" name="credit"/>
+            <relationship type="many-to-one" to_table="user_mgmt.users" back_populates="listings" name="seller"/>
+            <relationship type="one-to-one" to_table="p2p_marketplace.transactions" back_populates="listing" name="transaction"/>
+        </relationships>
+    </table>
+    <table name="transactions">
+        <columns>
+            <column name="id" type="UUID" primary_key="true" default="uuid.uuid4"/>
+            <column name="listing_id" type="UUID" foreign_key="p2p_marketplace.p2p_listings.id" nullable="false"/>
+            <column name="buyer_id" type="UUID" foreign_key="user_mgmt.users.id" nullable="false"/>
+            <column name="seller_id" type="UUID" foreign_key="user_mgmt.users.id" nullable="false"/>
+            <column name="quantity" type="Float" nullable="false"/>
+            <column name="total_price" type="Float" nullable="false"/>
+            <column name="stripe_charge_id" type="String(255)" unique="true" nullable="false"/>
+            <column name="status" type="Enum('Pending', 'Completed', 'Failed')" default="Pending" nullable="false"/>
+            <column name="created_at" type="DateTime(timezone=True)" server_default="func.now()"/>
+            <column name="updated_at" type="DateTime(timezone=True)" server_default="func.now()" onupdate="func.now()"/>
+            <column name="completed_at" type="TIMESTAMP"/>
+        </columns>
+        <relationships>
+            <relationship type="one-to-one" to_table="p2p_marketplace.p2p_listings" back_populates="transaction" name="listing"/>
+            <relationship type="many-to-one" to_table="user_mgmt.users" foreign_keys="buyer_id" back_populates="transactions_as_buyer" name="buyer"/>
+            <relationship type="many-to-one" to_table="user_mgmt.users" foreign_keys="seller_id" back_populates="transactions_as_seller" name="seller"/>
+        </relationships>
+    </table>
+  </schema>
+  <schema name="analytics">
+    <table name="analytics_events">
+      <columns>
+        <column name="id" type="UUID" primary_key="true" default="uuid.uuid4"/>
+        <column name="event_type" type="String(255)" index="true" nullable="false"/>
+        <column name="user_id" type="UUID" foreign_key="user_mgmt.users.id" nullable="true" comment="Can be null for anonymous events"/>
+        <column name="details" type="JSONB" nullable="true"/>
+        <column name="created_at" type="DateTime(timezone=True)" server_default="func.now()"/>
+      </columns>
+    </table>
+  </schema>
+</database> 

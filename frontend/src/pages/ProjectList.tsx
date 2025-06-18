@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import useApi from '../services/api'; // Assuming you have a custom hook for the api
+import { api } from '../services/api';
 import { 
   Container, 
   Typography, 
@@ -33,7 +33,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import ForestIcon from '@mui/icons-material/Forest';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 
-// Define Project type
+// define Project type
 interface Project {
   id: string;
   name: string;
@@ -53,11 +53,10 @@ const ProjectList: React.FC = () => {
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [snackbarOpen, setSnackbarOpen] = useState<boolean>(false);
   const [snackbarMessage, setSnackbarMessage] = useState<string>('');
-  const api = useApi();
+  // const api = useApi();
   
   useEffect(() => {
     const fetchProjects = async () => {
-      if (!api) return;
       try {
         setLoading(true);
         const response = await api.get('/projects/');
@@ -71,17 +70,17 @@ const ProjectList: React.FC = () => {
     };
 
     fetchProjects();
-  }, [api]);
+  }, []);
 
-  // Function to handle project deletion
+  // function to handle project deletion
   const handleDeleteProject = async () => {
     if (!projectToDelete) return;
     
     try {
-      // In a real implementation, this would use the projectService
+      // in a real app, this would use the projectService
       // await projectService.deleteProject(projectToDelete.id);
       
-      // For now, just update the local state
+      // for now, just update the local state
       setProjects(projects.filter(project => project.id !== projectToDelete.id));
       
       setSnackbarMessage(`Project "${projectToDelete.name}" deleted successfully`);
@@ -96,13 +95,13 @@ const ProjectList: React.FC = () => {
     }
   };
 
-  // Function to open delete confirmation dialog
+  // function to open delete confirmation dialog
   const openDeleteDialog = (project: Project) => {
     setProjectToDelete(project);
     setDeleteDialogOpen(true);
   };
 
-  // Filter projects based on search term
+  // filter projects based on search term
   const filteredProjects = projects.filter(project => 
     project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     project.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -190,7 +189,7 @@ const ProjectList: React.FC = () => {
         </Paper>
       </Box>
 
-      {/* Delete Confirmation Dialog */}
+      {/* delete confirmation dialog */}
       <Dialog
         open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
@@ -209,7 +208,7 @@ const ProjectList: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Snackbar for notifications */}
+      {/* snackbar for notifications */}
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={6000}

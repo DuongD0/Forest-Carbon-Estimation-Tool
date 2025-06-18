@@ -12,7 +12,7 @@ def read_user_me(
     current_user: models.User = Depends(deps.get_current_user),
 ):
     """
-    Get current user profile.
+    get my profile
     """
     return current_user
 
@@ -24,7 +24,7 @@ def update_user_me(
     current_user: models.User = Depends(deps.get_current_user),
 ):
     """
-    Update own user profile.
+    update my profile
     """
     user = crud.user.update(db, db_obj=current_user, obj_in=user_in)
     return user
@@ -36,7 +36,7 @@ def get_user_bookmarks(
     current_user: models.User = Depends(deps.get_current_user),
 ):
     """
-    Get all projects bookmarked by the current user.
+    get all my bookmarked projects
     """
     return current_user.bookmarked_projects
 
@@ -48,7 +48,7 @@ def add_user_bookmark(
     current_user: models.User = Depends(deps.get_current_user),
 ):
     """
-    Add a project to the current user's bookmarks.
+    bookmark a project
     """
     project_to_bookmark = crud.project.get(db, id=bookmark_in.project_id)
     if not project_to_bookmark:
@@ -69,7 +69,7 @@ def remove_user_bookmark(
     current_user: models.User = Depends(deps.get_current_user),
 ):
     """
-    Remove a project from the current user's bookmarks.
+    remove a project from my bookmarks
     """
     project_to_remove = crud.project.get(db, id=project_id)
     if not project_to_remove:
@@ -90,7 +90,7 @@ def read_users(
     current_user: models.User = Security(deps.get_current_user, scopes=["read:users"]),
 ):
     """
-    Retrieve all users. (Admin only)
+    get all users (admins only)
     """
     users = crud.user.get_multi(db, skip=skip, limit=limit)
     return users
@@ -102,7 +102,7 @@ def read_user_by_id(
     current_user: models.User = Security(deps.get_current_user, scopes=["read:users"]),
 ):
     """
-    Get a specific user by ID. (Admin only)
+    get user by id (admins only)
     """
     user = crud.user.get(db, id=user_id)
     return user 

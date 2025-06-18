@@ -4,19 +4,27 @@ from fastapi.security import SecurityScopes, OAuth2AuthorizationCodeBearer, OAut
 from sqlalchemy.orm import Session
 from pydantic import ValidationError
 from app import crud, models, schemas
-from app.core.security import auth
-from app.core.auth import Auth0
+from app.core.security import auth, Auth0
 from app.db.session import SessionLocal
 
 # This is a placeholder for the real Auth0 flow. In a real application,
 # the token URL would be on the Auth0 domain.
 # For API validation, we only care about the token itself.
-oauth2_scheme = OAuth2AuthorizationCodeBearer(
-    authorizationUrl=f"https://{auth.domain}/authorize",
-    tokenUrl=f"https://{auth.domain}/oauth/token",
-)
+auth = Auth0()
 
-auth = Auth0() 
+# Create OAuth2 scheme - use placeholder URLs if Auth0 is not configured
+if auth.domain and auth.domain != "your_auth0_domain.auth0.com":
+    oauth2_scheme = OAuth2AuthorizationCodeBearer(
+        authorizationUrl=f"https://{auth.domain}/authorize",
+        tokenUrl=f"https://{auth.domain}/oauth/token",
+    )
+else:
+    # Use placeholder URLs for development
+    oauth2_scheme = OAuth2AuthorizationCodeBearer(
+        authorizationUrl="https://placeholder.auth0.com/authorize",
+        tokenUrl="https://placeholder.auth0.com/oauth/token",
+    )
+
 reusable_oauth2 = OAuth2PasswordBearer(
     tokenUrl="/api/v1/login/access-token"
 )
@@ -33,8 +41,24 @@ async def get_current_user(
     db: Session = Depends(get_db), 
     token: str = Security(reusable_oauth2)
 ) -> models.User:
+    from app.core.config import settings
+    
+    # For development mode, accept dev token and create/return a test user
+    if settings.DEVELOPMENT_MODE and token == "dev-token-123":
+        # Development mode - create/return a test user
+        test_user = crud.user.get_by_email(db, email="test@example.com")
+        if not test_user:
+            user_in = schemas.UserCreate(
+                email="test@example.com",
+                first_name="Test",
+                last_name="User",
+                organization="Test Organization"
+            )
+            test_user = crud.user.create(db, obj_in=user_in)
+        return test_user
+    
     try:
-        payload = auth.verify_token(token)
+        payload = await auth.verify_token(token, security_scopes)
     except Exception as e:
         raise HTTPException(
             status_code=401,
@@ -42,13 +66,14 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    user = crud.user.get_by_auth0_id(db, auth0_id=payload['sub'])
+    user = crud.user.get_by_email(db, email=payload.get('email'))
     if not user:
         # User doesn't exist, create a new one (JIT Provisioning)
         user_in = schemas.UserCreate(
-            auth0_id=payload['sub'],
             email=payload.get('email'),
-            name=payload.get('name', payload.get('nickname')),
+            first_name=payload.get('given_name', ''),
+            last_name=payload.get('family_name', ''),
+            organization=payload.get('organization', '')
         )
         user = crud.user.create(db, obj_in=user_in)
 

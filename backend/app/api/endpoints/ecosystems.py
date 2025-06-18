@@ -14,7 +14,7 @@ def read_ecosystems(
     limit: int = 100,
 ) -> Any:
     """
-    Retrieve all ecosystems.
+    get all ecosystems
     """
     ecosystems = crud.ecosystem.get_multi(db, skip=skip, limit=limit)
     return ecosystems
@@ -27,7 +27,7 @@ def create_ecosystem(
     current_user: models.User = Security(deps.get_current_user, scopes=["manage:ecosystems"]),
 ) -> Any:
     """
-    Create new ecosystem. (Admin only)
+    create new ecosystem (admins only)
     """
     ecosystem = crud.ecosystem.create(db=db, obj_in=ecosystem_in)
     return ecosystem
@@ -41,7 +41,7 @@ def update_ecosystem(
     current_user: models.User = Security(deps.get_current_user, scopes=["manage:ecosystems"]),
 ) -> Any:
     """
-    Update an ecosystem. (Admin only)
+    update an ecosystem (admins only)
     """
     ecosystem = crud.ecosystem.get(db=db, id=ecosystem_id)
     if not ecosystem:
@@ -56,7 +56,7 @@ def read_ecosystem(
     ecosystem_id: str,
 ) -> Any:
     """
-    Get ecosystem by ID.
+    get ecosystem by id
     """
     ecosystem = crud.ecosystem.get(db=db, id=ecosystem_id)
     if not ecosystem:
@@ -71,7 +71,7 @@ def delete_ecosystem(
     current_user: models.User = Security(deps.get_current_user, scopes=["manage:ecosystems"]),
 ) -> Any:
     """
-    Delete an ecosystem. (Admin only)
+    delete an ecosystem (admins only)
     """
     ecosystem = crud.ecosystem.get(db=db, id=ecosystem_id)
     if not ecosystem:

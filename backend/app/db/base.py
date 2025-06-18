@@ -1,5 +1,4 @@
-# Import all the models, so that Base has them before being
-# imported by Alembic
+# import all the models, so Base has them before alembic runs
 from app.db.session import Base
 from app.models import (
     User,
@@ -8,9 +7,7 @@ from app.models import (
     P2PListing,
     Transaction,
     Ecosystem,
-    RenewableEnergyProject,
     AnalyticsEvent,
     project_bookmarks,
 )
-print("Base models for v2 imported for Alembic discovery.")
 

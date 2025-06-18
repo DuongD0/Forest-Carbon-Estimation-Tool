@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { P2PListing } from '../types';
-import p2pService from '../services/p2p';
+import { purchaseCredits } from '../services/p2p';
 import PurchaseModal from './PurchaseModal';
 import { Card, CardContent, Typography, CardActions, Button, Snackbar, Alert } from '@mui/material';
 
@@ -25,7 +25,7 @@ const P2PListingItem: React.FC<P2PListingItemProps> = ({ listing, onPurchaseSucc
     const handlePurchaseSubmit = async (quantity: number) => {
         setIsSubmitting(true);
         try {
-            await p2pService.purchaseCredits(listing.id, quantity);
+            await purchaseCredits(listing.id, quantity);
             setSnackbar({ open: true, message: 'Purchase successful!', severity: 'success' });
             onPurchaseSuccess();
         } catch (error: any) {

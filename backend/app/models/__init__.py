@@ -4,8 +4,8 @@ from .carbon_credit import CarbonCredit
 from .p2p_listing import P2PListing
 from .transaction import Transaction
 from .ecosystem import Ecosystem
-from .renewable_energy_project import RenewableEnergyProject
 from .analytics_event import AnalyticsEvent
+from .imagery import Imagery, ImageryProcessingResult
 from .shared import project_bookmarks
 
 __all__ = [
@@ -15,7 +15,8 @@ __all__ = [
     "P2PListing",
     "Transaction",
     "Ecosystem",
-    "RenewableEnergyProject",
     "AnalyticsEvent",
+    "Imagery",
+    "ImageryProcessingResult",
     "project_bookmarks",
 ] 

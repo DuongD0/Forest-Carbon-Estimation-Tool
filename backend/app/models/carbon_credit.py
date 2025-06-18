@@ -8,7 +8,7 @@ from app.db.session import Base
 
 class CreditStatus(str, enum.Enum):
     ISSUED = "Issued"
-    LISTED = "Listed" # for P2P marketplace
+    LISTED = "Listed" # for the p2p marketplace
     SOLD = "Sold"
     RETIRED = "Retired"
 
@@ -19,7 +19,7 @@ class CarbonCredit(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     project_id = Column(UUID(as_uuid=True), ForeignKey("project_mgmt.projects.id"), nullable=False)
     vcs_serial_number = Column(String(255), unique=True, index=True, nullable=False)
-    quantity_co2e = Column(Float, nullable=False) # in metric tons
+    quantity_co2e = Column(Float, nullable=False) # tonnes
     vintage_year = Column(Integer, nullable=False)
     status = Column(SQLEnum(CreditStatus), default=CreditStatus.ISSUED, nullable=False)
     issuance_date = Column(DateTime(timezone=True), server_default=func.now())

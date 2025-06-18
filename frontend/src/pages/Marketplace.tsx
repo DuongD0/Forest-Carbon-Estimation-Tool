@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { P2PListing } from '../types';
-import p2pService from '../services/p2p';
+import { getP2PListings } from '../services/p2p';
 import P2PListingItem from '../components/P2PListingItem';
 import { Container, Grid, Typography, CircularProgress, Alert } from '@mui/material';
 
@@ -12,10 +12,16 @@ const Marketplace = () => {
     const fetchListings = async () => {
         try {
             setLoading(true);
-            const data = await p2pService.getActiveListings();
+            const data = await getP2PListings();
             setListings(data);
             setError(null);
         } catch (err: any) {
+            console.error('Error fetching P2P listings:', err);
+            console.error('Error details:', {
+                message: err.message,
+                response: err.response?.data,
+                status: err.response?.status
+            });
             setError(err.message || 'Failed to fetch P2P listings.');
         } finally {
             setLoading(false);

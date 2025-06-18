@@ -3,7 +3,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from app.db.session import Base
 
-# Intermediate table for project bookmarks
+# table for project bookmarks
 project_bookmarks = Table(
     "project_bookmarks",
     Base.metadata,

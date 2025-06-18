@@ -13,7 +13,7 @@ def get_bookmarked_projects(
     current_user: models.User = Depends(deps.get_current_user),
 ) -> Any:
     """
-    Get all projects bookmarked by the current user.
+    get my bookmarked projects
     """
     return current_user.bookmarked_projects
 
@@ -25,7 +25,7 @@ def add_bookmark(
     current_user: models.User = Depends(deps.get_current_user),
 ) -> Any:
     """
-    Bookmark a project.
+    bookmark a project for me
     """
     project = crud.project.get(db=db, id=project_id)
     if not project:
@@ -46,7 +46,7 @@ def remove_bookmark(
     current_user: models.User = Depends(deps.get_current_user),
 ) -> Any:
     """
-    Remove a project bookmark.
+    remove my bookmark for a project
     """
     project = crud.project.get(db=db, id=project_id)
     if not project:

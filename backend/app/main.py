@@ -1,6 +1,7 @@
-from fastapi import FastAPI
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from fastapi.openapi.utils import get_openapi
+from starlette.middleware.cors import CORSMiddleware
 import json
 
 from app.api.api_v1.api import api_router
@@ -10,6 +11,19 @@ app = FastAPI(
     openapi_url="/api/v1/openapi.json",
     docs_url=None, 
     redoc_url=None,
+)
+
+# Print startup message
+print("FastAPI application initialized with API v1 router.")
+
+# Configure CORS with Starlette directly
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 app.include_router(api_router, prefix="/api/v1")

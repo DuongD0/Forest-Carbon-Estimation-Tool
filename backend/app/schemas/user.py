@@ -1,8 +1,8 @@
 from typing import Optional
 import uuid
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, ConfigDict
 
-# Shared properties
+# shared properties
 class UserBase(BaseModel):
     email: Optional[EmailStr] = None
     is_active: Optional[bool] = True
@@ -10,25 +10,23 @@ class UserBase(BaseModel):
     last_name: Optional[str] = None
     organization: Optional[str] = None
 
-# Properties to receive via API on creation
+# properties for creating
 class UserCreate(UserBase):
-    id: uuid.UUID
     email: EmailStr
 
-# Properties to receive via API on update
+# properties for updating
 class UserUpdate(UserBase):
     pass
 
 class UserInDBBase(UserBase):
-    id: uuid.UUID
+    model_config = ConfigDict(from_attributes=True)
     
-    class Config:
-        orm_mode = True
+    id: uuid.UUID
 
-# Additional properties to return via API
+# properties to return to client
 class User(UserInDBBase):
     pass
 
-# Additional properties stored in DB
+# properties stored in db
 class UserInDB(UserInDBBase):
     pass 

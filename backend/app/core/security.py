@@ -12,11 +12,11 @@ from jose import jwt, JWTError
 
 load_dotenv()
 
-# --- Password Hashing ---
+# for password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 ALGORITHM = "HS256"
-# Use environment variables for secrets
+# use .env for secrets
 JWT_SECRET_KEY = os.getenv("SECRET_KEY", "a_very_secure_default_secret_key_replace_it")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 
@@ -26,7 +26,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
-# --- JWT Token Handling ---
+# for jwt tokens
 
 def create_access_token(
     subject: Union[str, Any], expires_delta: Optional[timedelta] = None
@@ -41,15 +41,13 @@ def create_access_token(
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-print("Security utilities (password hashing, JWT) defined.")
-
 class Auth0:
     def __init__(self):
         self.domain = settings.AUTH0_DOMAIN
         self.audience = settings.AUTH0_API_AUDIENCE
         self.issuer = settings.AUTH0_ISSUER
         self.algorithms = [settings.AUTH0_ALGORITHMS]
-        self.jwks_url = f"https://{self.domain}/.well-known/jwks.json"
+        self.jwks_url = f"https://{self.domain}/.well-known/jwks.json" if self.domain else None
 
     async def get_jwks(self):
         async with httpx.AsyncClient() as client:
@@ -60,6 +58,13 @@ class Auth0:
     async def verify_token(self, token: str, security_scopes: SecurityScopes):
         if token is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Requires authentication")
+
+        # Skip Auth0 verification if domain is not properly configured (development mode)
+        if not self.domain or self.domain == "your_auth0_domain.auth0.com":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Auth0 not configured - use development mode",
+            )
 
         try:
             jwks = await self.get_jwks()

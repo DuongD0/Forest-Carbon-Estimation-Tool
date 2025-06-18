@@ -10,7 +10,7 @@ import {
   Alert
 } from '@mui/material';
 
-// Duplicating types for now, ideally these would be in a shared types file
+// duplicating types for now, ideally these would be in a shared types file
 interface CarbonCreditResult {
   gross_credits_co2e: number;
   net_credits_co2e: number;

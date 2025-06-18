@@ -31,12 +31,12 @@ class CRUDProject(CRUDBase[Project, ProjectCreate, ProjectUpdate]):
         self, db: Session, *, lat: float, lon: float, distance_km: float
     ) -> List[Project]:
         """
-        Finds projects within a certain distance (in km) from a lat/lon point.
+        finds projects within a certain distance (in km) from a lat/lon point.
         """
-        # PostGIS uses meters for distance, so convert km to meters
+        # postgis wants meters, so convert km to m
         distance_meters = distance_km * 1000
         
-        # Create a point from the lat/lon and cast it to geography
+        # make a point from the lat/lon and cast to geography
         point = func.ST_SetSRID(func.ST_MakePoint(lon, lat), 4326)
         point_geography = func.geography(point)
 

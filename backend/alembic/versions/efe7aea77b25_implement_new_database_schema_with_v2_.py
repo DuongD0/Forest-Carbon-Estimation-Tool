@@ -64,12 +64,14 @@ def upgrade() -> None:
     schema='analytics'
     )
     op.create_index(op.f('ix_analytics_analytics_events_event_type'), 'analytics_events', ['event_type'], unique=False, schema='analytics')
-    op.drop_table('projects', schema='project_mgmt', if_exists=True)
+    # First check if table exists and drop if needed
+    op.execute("DROP TABLE IF EXISTS project_mgmt.projects CASCADE")
+    
     op.create_table('projects',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('name', sa.String(length=255), nullable=False),
     sa.Column('description', sa.Text(), nullable=True),
-    sa.Column('project_type', sa.Enum('FORESTRY', 'RENEWABLE_ENERGY', name='projecttype'), nullable=False),
+    sa.Column('project_type', sa.Enum('FORESTRY', name='projecttype'), nullable=False),
     sa.Column('status', sa.Enum('DRAFT', 'UNDER_REVIEW', 'ACTIVE', 'COMPLETED', 'REJECTED', name='projectstatus'), nullable=False),
     sa.Column('owner_id', sa.UUID(), nullable=False),
     sa.Column('location_geometry', geoalchemy2.types.Geometry(geometry_type='POLYGON', srid=4326, from_text='ST_GeomFromEWKT', name='geometry'), nullable=True),
@@ -79,7 +81,9 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id'),
     schema='project_mgmt'
     )
-    op.create_index('idx_projects_location_geometry', 'projects', ['location_geometry'], unique=False, schema='project_mgmt', postgresql_using='gist')
+    
+    # Create index if it doesn't exist
+    op.execute("CREATE INDEX IF NOT EXISTS idx_projects_location_geometry ON project_mgmt.projects USING gist (location_geometry)")
     op.create_index(op.f('ix_project_mgmt_projects_name'), 'projects', ['name'], unique=False, schema='project_mgmt')
     op.create_table('carbon_credits',
     sa.Column('id', sa.UUID(), nullable=False),
@@ -96,17 +100,6 @@ def upgrade() -> None:
     schema='carbon_mgmt'
     )
     op.create_index(op.f('ix_carbon_mgmt_carbon_credits_vcs_serial_number'), 'carbon_credits', ['vcs_serial_number'], unique=True, schema='carbon_mgmt')
-    op.create_table('renewable_energy_projects',
-    sa.Column('id', sa.UUID(), nullable=False),
-    sa.Column('project_id', sa.UUID(), nullable=False),
-    sa.Column('energy_type', sa.Enum('SOLAR', 'WIND', 'HYDRO', 'GEOTHERMAL', name='renewableenergytype'), nullable=False),
-    sa.Column('capacity_mw', sa.Float(), nullable=False),
-    sa.Column('annual_generation_mwh', sa.Float(), nullable=False),
-    sa.Column('grid_emission_factor', sa.Float(), nullable=False),
-    sa.ForeignKeyConstraint(['project_id'], ['project_mgmt.projects.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    schema='project_mgmt'
-    )
     op.create_table('project_bookmarks',
     sa.Column('user_id', sa.UUID(), nullable=False),
     sa.Column('project_id', sa.UUID(), nullable=False),
@@ -158,7 +151,6 @@ def downgrade() -> None:
     op.drop_table('transactions', schema='p2p_marketplace')
     op.drop_table('p2p_listings', schema='p2p_marketplace')
     op.drop_table('project_bookmarks', schema='user_mgmt')
-    op.drop_table('renewable_energy_projects', schema='project_mgmt')
     op.drop_index(op.f('ix_carbon_mgmt_carbon_credits_vcs_serial_number'), table_name='carbon_credits', schema='carbon_mgmt')
     op.drop_table('carbon_credits', schema='carbon_mgmt')
     op.drop_index(op.f('ix_project_mgmt_projects_name'), table_name='projects', schema='project_mgmt')

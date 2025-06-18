@@ -17,25 +17,22 @@ import {
   Tooltip,
   useTheme,
   useMediaQuery,
-  CssBaseline
+  CssBaseline,
+  ListItemButton
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import MenuIcon from '@mui/icons-material/Menu';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import FolderIcon from '@mui/icons-material/Folder';
-import ForestIcon from '@mui/icons-material/Forest';
-import ImageIcon from '@mui/icons-material/Image';
 import CalculateIcon from '@mui/icons-material/Calculate';
 import SettingsIcon from '@mui/icons-material/Settings';
 import LogoutIcon from '@mui/icons-material/Logout';
 import StorefrontIcon from '@mui/icons-material/Storefront';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import Dashboard from '../pages/Dashboard';
-import Reports from '../pages/Reports';
-import Marketplace from '../pages/Marketplace';
+import BarChartIcon from '@mui/icons-material/BarChart';
 
 const drawerWidth = 240;
 
@@ -71,7 +68,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
-  // Close drawer on mobile by default
+  // close drawer on mobile by default
   React.useEffect(() => {
     if (isMobile) {
       setOpen(false);
@@ -101,34 +98,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   const menuItems = [
-    { text: 'Dashboard', icon: <DashboardIcon />, path: '/dashboard' },
+    { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
     { text: 'Projects', icon: <FolderIcon />, path: '/projects' },
-    { text: 'Marketplace', icon: <StorefrontIcon />, path: '/marketplace' },
+    { text: 'Upload Images', icon: <CloudUploadIcon />, path: '/upload-images' },
     { text: 'Carbon Calculation', icon: <CalculateIcon />, path: '/calculate-carbon' },
+    { text: 'Reports', icon: <BarChartIcon />, path: '/reports' },
+    { text: 'Marketplace', icon: <StorefrontIcon />, path: '/marketplace' },
   ];
 
-  const MainListItems = (
-    <React.Fragment>
-      <ListItemButton component={Link} to="/dashboard">
-        <ListItemIcon>
-          <DashboardIcon />
-        </ListItemIcon>
-        <ListItemText primary="Dashboard" />
-      </ListItemButton>
-      <ListItemButton component={Link} to="/reports">
-        <ListItemIcon>
-          <BarChartIcon />
-        </ListItemIcon>
-        <ListItemText primary="Reports" />
-      </ListItemButton>
-      <ListItemButton component={Link} to="/marketplace">
-        <ListItemIcon>
-          <StorefrontIcon />
-        </ListItemIcon>
-        <ListItemText primary="Marketplace" />
-      </ListItemButton>
-    </React.Fragment>
-  );
 
   return (
     <Box sx={{ display: 'flex' }}>
@@ -257,12 +234,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       </Drawer>
       <Main open={open && !isMobile}>
         <Toolbar />
-        <Routes>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/marketplace" element={<Marketplace />} />
-          <Route path="/" element={<Navigate replace to="/dashboard" />} />
-        </Routes>
+        {children}
       </Main>
     </Box>
   );

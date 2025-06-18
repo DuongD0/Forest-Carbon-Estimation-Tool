@@ -9,14 +9,10 @@ class StripeService:
         self,
         amount: int, # in cents
         currency: str = "usd",
-        source: str = "tok_visa", # This is a test token
+        source: str = "tok_visa", # test token
         description: str = "Carbon Credit Purchase"
     ) -> stripe.Charge:
-        """
-        Creates a new charge using the Stripe API.
-        In a real application, you would use PaymentIntents for SCA compliance.
-        The 'source' would come from a frontend integration with Stripe.js.
-        """
+
         try:
             charge = stripe.Charge.create(
                 amount=amount,
@@ -26,7 +22,7 @@ class StripeService:
             )
             return charge
         except stripe.error.StripeError as e:
-            # Handle Stripe errors (e.g., card declined, invalid request)
+            # handle stripe errors (like card declined)
             raise ValueError(f"Stripe error: {str(e)}")
 
 stripe_service = StripeService() 

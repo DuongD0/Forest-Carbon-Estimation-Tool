@@ -4,12 +4,18 @@ FROM python:3.11-slim
 # Set the working directory in the container
 WORKDIR /app
 
-# Install system dependencies required for geospatial libraries
+# Install system dependencies required for geospatial libraries and OpenCV
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libgdal-dev \
     gdal-bin \
     python3-gdal \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the requirements file into the container at /app
@@ -30,5 +36,5 @@ ENV NAME World
 
 # Run main.py when the container launches
 # The command will be overridden by docker-compose.yml for development (using --reload)
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
 

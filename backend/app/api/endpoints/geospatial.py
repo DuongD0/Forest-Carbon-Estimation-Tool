@@ -17,16 +17,16 @@ def find_projects_near(
     distance_km: float = Query(10.0, description="Distance in kilometers"),
 ):
     """
-    Find projects within a certain distance from a geographic point.
+    find projects near a lat/lon point
     """
-    # Create a point from the input lat/lon
+    # make a point from the lat/lon
     point = f'POINT({lon} {lat})'
     
-    # Convert distance from km to meters
+    # convert km to meters for the query
     distance_m = distance_km * 1000
 
-    # Query projects within the distance using PostGIS ST_DWithin
-    # We cast the project's geometry to geography for distance calculations in meters
+    # find projects inside the distance with postgis ST_DWithin
+    # have to cast to geography to get meters
     projects = (
         db.query(models.Project)
         .filter(

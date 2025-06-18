@@ -12,8 +12,8 @@ import os
 
 from app import crud, models, schemas
 from app.api import deps
-from app.processing.carbon_calculator import CarbonCalculator
-from app.services.serial_number_generator import serial_number_generator
+from app.services.carbon_calculator import VCSCarbonCalculator
+from app.services.serial_generator import serial_generator
 
 router = APIRouter()
 
@@ -26,7 +26,7 @@ def read_projects(
     current_user: models.User = Depends(deps.get_current_user),
 ) -> Any:
     """
-    Retrieve projects for the current user.
+    get my projects
     """
     projects = crud.project.get_multi_by_owner(
         db=db, owner_id=current_user.id, skip=skip, limit=limit, project_type=project_type
@@ -41,7 +41,7 @@ def create_project(
     current_user: models.User = Depends(deps.get_current_user),
 ) -> Any:
     """
-    Create new project for the current user.
+    create a new project
     """
     project = crud.project.create_with_owner(db=db, obj_in=project_in, owner_id=current_user.id)
     return project
@@ -54,7 +54,7 @@ def read_project(
     current_user: models.User = Depends(deps.get_current_user),
 ) -> Any:
     """
-    Get project by ID.
+    get a project by its id
     """
     project = crud.project.get(db=db, id=project_id)
     if not project:
@@ -72,7 +72,7 @@ def update_project(
     current_user: models.User = Depends(deps.get_current_user),
 ) -> Any:
     """
-    Update a project.
+    update a project
     """
     project = crud.project.get(db=db, id=project_id)
     if not project:
@@ -90,7 +90,7 @@ def delete_project(
     current_user: models.User = Depends(deps.get_current_user),
 ) -> Any:
     """
-    Delete a project.
+    delete a project
     """
     project = crud.project.get(db=db, id=project_id)
     if not project:
@@ -109,7 +109,7 @@ def set_project_geometry(
     current_user: models.User = Depends(deps.get_current_user),
 ) -> Any:
     """
-    Set or update the geometry for a project.
+    set or update the project's geometry
     """
     project = crud.project.get(db=db, id=project_id)
     if not project:
@@ -135,7 +135,7 @@ async def calculate_carbon(
     image: UploadFile = File(...),
 ) -> Any:
     """
-    Trigger carbon stock calculation for a project from an uploaded image.
+    calculates the carbon stock for a project from an image i upload.
     """
     project = crud.project.get(db=db, id=project_id)
     if not project:
@@ -148,9 +148,26 @@ async def calculate_carbon(
     nparr = np.fromstring(contents, np.uint8)
     img_np = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
-    calculator = CarbonCalculator(db=db, project=project)
+    calculator = VCSCarbonCalculator(db=db)
     try:
-        carbon_stock = calculator.calculate_carbon_stock(image=img_np)
+        # Save image to temporary file for processing
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as temp_file:
+            cv2.imwrite(temp_file.name, img_np)
+            
+            # Calculate carbon credits using the VCS methodology
+            result = calculator.calculate_credits(
+                project=project,
+                image_path=temp_file.name,
+                image_scale_factor=1.0,  # Assume 1 meter per pixel for now
+                project_age_years=1,     # Assume 1 year old project
+                use_vcs_methodology=True
+            )
+            
+            # Clean up temporary file
+            os.unlink(temp_file.name)
+            
+            carbon_stock = result.get('creditable_carbon_credits_tCO2e', 0.0)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
         
@@ -165,7 +182,7 @@ async def upload_shapefile(
     file: UploadFile = File(...),
 ) -> Any:
     """
-    Upload a zipped shapefile to define project geometry.
+    upload a shapefile zip to define project geometry.
     """
     project = crud.project.get(db=db, id=project_id)
     if not project:
@@ -211,7 +228,7 @@ def issue_carbon_credits(
     current_user: models.User = Security(deps.get_current_user, scopes=["manage:credits"]),
 ) -> Any:
     """
-    Issue new carbon credits for a project. (Admin only)
+    issue new carbon credits for a project (admins only)
     """
     project = crud.project.get(db=db, id=project_id)
     if not project:
@@ -222,10 +239,11 @@ def issue_carbon_credits(
         raise HTTPException(status_code=400, detail="Project ID mismatch")
 
     # Generate the serial number
-    serial_number = serial_number_generator.generate(
-        project=project,
+    serial_number = serial_generator.generate_serial(
+        project_id=project.id,
         vintage_year=issuance_request.vintage_year,
-        quantity=int(issuance_request.quantity_co2e)
+        batch_size=float(issuance_request.quantity_co2e),
+        sequential_number=1  # This should be retrieved from database
     )
 
     # Create the credit object

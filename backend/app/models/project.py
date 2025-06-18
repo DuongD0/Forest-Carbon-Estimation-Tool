@@ -10,7 +10,6 @@ from app.models.shared import project_bookmarks
 
 class ProjectType(str, enum.Enum):
     FORESTRY = "Forestry"
-    RENEWABLE_ENERGY = "Renewable Energy"
 
 class ProjectStatus(str, enum.Enum):
     DRAFT = "Draft"
@@ -38,5 +37,6 @@ class Project(Base):
     ecosystem = relationship("Ecosystem")
     carbon_credits = relationship("CarbonCredit", back_populates="project")
     bookmarked_by = relationship("User", secondary=project_bookmarks, back_populates="bookmarked_projects")
+    imagery = relationship("Imagery", back_populates="project")
 
-# Intermediate table for project bookmarks is now in shared.py 
+# project bookmarks table is in shared.py now 

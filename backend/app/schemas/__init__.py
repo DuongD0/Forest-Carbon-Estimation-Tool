@@ -6,7 +6,6 @@ from .carbon_credit import CarbonCredit, CarbonCreditCreate, CarbonCreditUpdate,
 from .p2p_listing import P2PListing, P2PListingCreate, P2PListingUpdate
 from .transaction import Transaction, TransactionCreate, TransactionUpdate
 from .project_bookmark import ProjectBookmarkCreate
-from .renewable_energy_project import RenewableEnergyProject, RenewableEnergyProjectCreate, RenewableEnergyProjectUpdate
 
 __all__ = [
     "User", "UserCreate", "UserUpdate", 
@@ -17,5 +16,4 @@ __all__ = [
     "P2PListing", "P2PListingCreate", "P2PListingUpdate",
     "Transaction", "TransactionCreate", "TransactionUpdate",
     "ProjectBookmarkCreate",
-    "RenewableEnergyProject", "RenewableEnergyProjectCreate", "RenewableEnergyProjectUpdate",
 ] 

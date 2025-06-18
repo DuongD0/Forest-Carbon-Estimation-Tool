@@ -2,10 +2,10 @@ export interface Project {
     id: string;
     name: string;
     description: string | null;
-    project_type: 'Forestry' | 'Renewable Energy';
+    project_type: 'Forestry';
     status: 'Draft' | 'Under Review' | 'Active' | 'Completed' | 'Rejected';
     owner_id: string;
-    location_geometry: any; // Or a more specific GeoJSON type
+    location_geometry: any; // or a more specific geojson type
     created_at: string;
     updated_at: string;
     ecosystem_id: string | null;
@@ -38,8 +38,8 @@ export interface P2PListing {
     quantity: number;
     status: 'Active' | 'Sold' | 'Cancelled';
     created_at: string;
-    credit?: CarbonCredit; // Optional, for eager loading
-    seller?: User; // Optional, for eager loading
+    credit?: CarbonCredit; // optional, for eager loading
+    seller?: User; // optional, for eager loading
 }
 
 export interface Transaction {
