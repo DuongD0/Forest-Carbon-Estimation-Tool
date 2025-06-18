@@ -1,149 +1,241 @@
 # Forest Carbon Credit Estimation Tool
 
-This project is a comprehensive web-based tool for estimating forest carbon credits in Vietnam. It leverages satellite/drone imagery analysis, geospatial data processing, and established scientific methodologies to provide accurate and reliable carbon credit calculations. The tool is designed for use by environmental agencies, project developers, and researchers.
+A comprehensive web-based platform for estimating and managing forest carbon credits in Vietnam. This tool combines satellite/drone imagery analysis, advanced computer vision, and geospatial data processing to provide accurate carbon credit calculations. It includes a peer-to-peer marketplace for carbon credit trading.
 
 ## Key Features
 
-*   **User & Project Management**: Secure authentication and role-based access control for managing users and carbon projects.
-*   **Geospatial Data Handling**: Supports uploading and managing project boundaries, forest areas (polygons), and sample plots using GeoJSON.
-*   **Imagery Processing**: Upload and process satellite or drone imagery. The backend can classify forest types based on HSV color signatures tailored for Vietnamese ecosystems.
-*   **Carbon Calculation Pipeline**: A full pipeline that:
-    *   Calculates biomass at the plot and forest level using allometric equations.
-    *   Derives carbon stock from biomass.
-    *   Establishes a baseline scenario.
-    *   Quantifies net creditable carbon credits after accounting for leakage and risk buffers.
-*   **RESTful API**: A robust backend API built with FastAPI provides access to all functionalities.
-*   **Web-based Frontend**: An intuitive user interface built with React and TypeScript for easy interaction with the system.
-*   **Database**: PostgreSQL with PostGIS for powerful and efficient spatial data storage and queries.
-*   **Containerized Deployment**: Docker and Docker Compose for easy setup and deployment.
+### Core Functionality
+- **User Management & Authentication**: Secure Auth0-based authentication with role-based access control
+- **Project Management**: Create and manage forest carbon projects with geospatial boundaries
+- **Geospatial Data Processing**: Upload and manage project areas using GeoJSON polygons with PostGIS support
+- **Forest Detection & Analysis**: AI-powered forest detection using OpenCV and HSV color signatures
+- **Carbon Credit Calculation**: Scientific carbon estimation pipeline including:
+  - Biomass calculation using allometric equations
+  - Carbon stock derivation from biomass
+  - Baseline scenario establishment
+  - Net creditable carbon credit quantification
+- **VCS Serial Number Generation**: Automated generation of Verified Carbon Standard serial numbers
 
-## Project Structure
+### Marketplace Features
+- **P2P Carbon Credit Trading**: Buy and sell carbon credits directly between users
+- **Stripe Payment Integration**: Secure payment processing for transactions
+- **Transaction Management**: Complete transaction history and status tracking
 
-The project is organized into a `backend` (FastAPI) and a `frontend` (React) application.
-
-```
-/
-├── backend/           # FastAPI backend application
-│   ├── alembic/       # Database migrations
-│   ├── app/           # Core application source code
-│   │   ├── api/       # API endpoints (routers)
-│   │   ├── core/      # Configuration, security
-│   │   ├── crud/      # CRUD database operations
-│   │   ├── db/        # Database session and initialization
-│   │   ├── models/    # SQLAlchemy ORM models
-│   │   ├── services/  # Business logic (carbon, payments, etc.)
-│   │   └── schemas/   # Pydantic data validation schemas
-│   ├── tests/         # Backend test suite
-│   ├── main.py        # App entry point
-│   └── ...
-├── frontend/          # React frontend application
-│   ├── src/
-│   │   ├── components/
-│   │   ├── contexts/
-│   │   ├── pages/
-│   │   ├── services/
-│   │   └── ...
-│   └── ...
-├── docker-compose.yml # Docker Compose configuration
-```
+### Additional Features
+- **Project Bookmarking**: Save and track favorite projects
+- **Export Functionality**: Export project data and reports
+- **Analytics & Reporting**: Track user activities and generate reports
+- **Multi-Ecosystem Support**: Configurable carbon and biomass factors for different ecosystems
 
 ## Technology Stack
 
-*   **Backend**: Python, FastAPI, SQLAlchemy, Alembic, GeoAlchemy2, Pydantic, PostgreSQL + PostGIS
-*   **Frontend**: TypeScript, React, Material-UI (MUI)
-*   **Geospatial**: Rasterio, GeoPandas, Shapely, PyPROJ
-*   **Deployment**: Docker, Docker Compose
+### Backend
+- **Framework**: FastAPI (Python)
+- **Database**: PostgreSQL with PostGIS extension + Redis for caching
+- **ORM**: SQLAlchemy with GeoAlchemy2
+- **Authentication**: Auth0 integration
+- **Payment Processing**: Stripe
+- **Image Processing**: OpenCV
+- **Geospatial**: Shapely, GeoPandas, Fiona
+- **Data Validation**: Pydantic
+- **Database Migrations**: Alembic
+
+### Frontend
+- **Framework**: React 18 with TypeScript
+- **UI Components**: Material-UI (MUI)
+- **Authentication**: Auth0 React SDK
+- **Data Fetching**: SWR + Axios
+- **Routing**: React Router v6
+
+### Infrastructure
+- **Containerization**: Docker & Docker Compose
+- **Web Server**: Uvicorn (ASGI)
+
+## Project Structure
+
+```
+Forest-Carbon-Estimation-Tool/
+├── backend/                    # FastAPI backend application
+│   ├── alembic/               # Database migrations
+│   │   └── versions/          # Migration scripts
+│   ├── app/
+│   │   ├── api/               # API layer
+│   │   │   ├── endpoints/     # API endpoints
+│   │   │   │   ├── bookmarks.py
+│   │   │   │   ├── calculate.py
+│   │   │   │   ├── ecosystems.py
+│   │   │   │   ├── export.py
+│   │   │   │   ├── geospatial.py
+│   │   │   │   ├── p2p.py
+│   │   │   │   ├── projects.py
+│   │   │   │   └── users.py
+│   │   │   └── deps.py        # API dependencies
+│   │   ├── core/              # Core configuration
+│   │   ├── crud/              # Database operations
+│   │   ├── db/                # Database setup
+│   │   ├── models/            # SQLAlchemy models
+│   │   ├── schemas/           # Pydantic schemas
+│   │   └── services/          # Business logic
+│   │       ├── carbon_calculator.py
+│   │       ├── forest_detector.py
+│   │       ├── serial_generator.py
+│   │       └── stripe.py
+│   ├── tests/                 # Test suite
+│   └── requirements.txt       # Python dependencies
+├── frontend/                  # React frontend
+│   ├── src/
+│   │   ├── components/        # Reusable components
+│   │   ├── contexts/          # React contexts
+│   │   ├── pages/             # Page components
+│   │   │   ├── CarbonCalculation.tsx
+│   │   │   ├── Dashboard.tsx
+│   │   │   ├── ForestDetail.tsx
+│   │   │   ├── ImageUploadPage.tsx
+│   │   │   ├── ImageryDetail.tsx
+│   │   │   ├── Login.tsx
+│   │   │   ├── Marketplace.tsx
+│   │   │   ├── ProjectDetail.tsx
+│   │   │   ├── ProjectList.tsx
+│   │   │   └── Reports.tsx
+│   │   ├── services/          # API services
+│   │   └── types.ts           # TypeScript types
+│   └── package.json
+├── production/                # Production configs
+├── scripts/                   # Utility scripts
+├── tests/                     # Integration tests
+└── docker-compose.yml        # Docker composition
+```
+
+## Database Schema
+
+The application uses PostgreSQL with multiple schemas for better organization:
+- **carbon_mgmt**: Carbon credits and ecosystem data
+- **user_mgmt**: Users and bookmarks
+- **project_mgmt**: Projects with geospatial data
+- **p2p_marketplace**: Listings and transactions
+- **analytics**: Event tracking
 
 ## Local Development Setup
 
 ### Prerequisites
+- Docker and Docker Compose
+- Python 3.9+ (for local development)
+- Node.js 16+ (for frontend development)
+- Conda (recommended for Python environment management)
 
-*   Docker and Docker Compose installed.
-*   `conda` for managing Python environment (recommended).
+### Quick Start with Docker
 
-### Backend Setup
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd Forest-Carbon-Estimation-Tool
+   ```
 
-1.  **Navigate to the `backend` directory:**
-    ```bash
-    cd backend
-    ```
+2. **Create environment file**
+   Create a `.env` file in the backend directory:
+   ```bash
+   # Database
+   DATABASE_URL=postgresql://forest_user:forest_password@db:5432/forest_carbon_db
+   REDIS_URL=redis://redis:6379/0
+   
+   # Security
+   SECRET_KEY=your_super_secret_key_here
+   
+   # Auth0
+   AUTH0_DOMAIN=your-auth0-domain
+   AUTH0_API_AUDIENCE=your-api-audience
+   AUTH0_ISSUER=https://your-auth0-domain/
+   AUTH0_ALGORITHMS=RS256
+   
+   # Stripe
+   STRIPE_SECRET_KEY=your_stripe_secret_key
+   STRIPE_API_VERSION=2022-11-15
+   ```
 
-2.  **Set up the environment.** It is recommended to use the `Forest` conda environment as specified in the project's memory.
-    ```bash
-    # (If you have conda)
-    conda create --name Forest python=3.9
-    conda activate Forest
-    pip install -r requirements.txt
-    ```
+3. **Start all services**
+   ```bash
+   docker-compose up --build
+   ```
 
-3.  **Create a `.env` file** and add the following environment variables:
-    ```bash
-    # PostgreSQL
-    DATABASE_URL=postgresql://user:password@db:5432/mydatabase
+4. **Run database migrations**
+   ```bash
+   docker-compose exec backend alembic upgrade head
+   ```
 
-    # For running tests
-    TEST_DATABASE_URL=postgresql://user:password@localhost:5433/testdatabase
+5. **Load initial data (optional)**
+   ```bash
+   docker-compose exec backend python -m app.db.initial_data
+   ```
 
-    # JWT
-    SECRET_KEY=a_very_secure_default_secret_key_replace_it
-    ACCESS_TOKEN_EXPIRE_MINUTES=30
+### Manual Setup (for development)
 
-    # Auth0
-    AUTH0_DOMAIN=your_auth0_domain
-    AUTH0_API_AUDIENCE=your_auth0_api_audience
-    AUTH0_ISSUER=https://your_auth0_domain/
-    AUTH0_ALGORITHMS=RS256
+#### Backend Setup
 
-    # Stripe
-    STRIPE_SECRET_KEY=your_stripe_secret_key
-    STRIPE_API_VERSION=2022-11-15
-    ```
+1. **Create and activate conda environment**
+   ```bash
+   conda create -n Forest python=3.9
+   conda activate Forest
+   ```
 
-4.  **Launch services using Docker Compose:**
-    ```bash
-    docker-compose up --build -d
-    ```
-    This will start the FastAPI backend server and the PostgreSQL database.
+2. **Install dependencies**
+   ```bash
+   cd backend
+   pip install -r requirements.txt
+   ```
 
-5.  **Apply database migrations:**
-    ```bash
-    docker-compose exec backend alembic upgrade head
-    ```
+3. **Run the backend**
+   ```bash
+   uvicorn app.main:app --reload --port 8000
+   ```
 
-6.  **(Optional) Load initial data:**
-    This will create a default admin user and some reference data (e.g., allometric equations for Vietnam).
-    ```bash
-    docker-compose exec backend python -m app.db.initial_data
-    ```
+#### Frontend Setup
 
-### Frontend Setup
+1. **Install dependencies**
+   ```bash
+   cd frontend
+   npm install
+   ```
 
-1.  **Navigate to the `frontend` directory:**
-    ```bash
-    cd frontend
-    ```
-2.  **Install dependencies:**
-    ```bash
-    npm install
-    ```
-3.  **Start the development server:**
-    ```bash
-    npm start
-    ```
+2. **Start development server**
+   ```bash
+   npm start
+   ```
 
 ## Accessing the Application
 
-*   **Frontend UI**: [http://localhost:3000](http://localhost:3000)
-*   **Backend API Docs (Swagger UI)**: [http://localhost:8000/docs](http://localhost:8000/docs)
-
-Default admin credentials (if initial data was loaded):
-*   **Email**: `admin@example.com`
-*   **Password**: `password`
+- **Frontend**: http://localhost:3000
+- **Backend API Documentation**: http://localhost:8000/docs
+- **Database**: localhost:5432 (PostgreSQL)
+- **Redis**: localhost:6379
 
 ## Running Tests
 
-To run the backend tests, execute the following command from the `backend` directory:
 ```bash
+# Backend tests
+cd backend
 pytest
+
+# Frontend tests
+cd frontend
+npm test
 ```
+
+## API Documentation
+
+The API documentation is automatically generated and available at `/docs` when the backend is running. Key endpoints include:
+
+- `/api/v1/users` - User management
+- `/api/v1/projects` - Project CRUD operations
+- `/api/v1/calculate` - Carbon calculation endpoints
+- `/api/v1/ecosystems` - Ecosystem data management
+- `/api/v1/p2p` - Marketplace operations
+- `/api/v1/geospatial` - Geospatial data processing
+
+## Contributing
+
+Please read our contributing guidelines before submitting pull requests.
+
+## License
+
+[Add your license information here]
 
