@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Container, 
   Typography, 
@@ -19,7 +19,15 @@ import {
   Stepper,
   Step,
   StepLabel,
-  StepContent
+  StepContent,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormLabel,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
 } from '@mui/material';
 import CalculateIcon from '@mui/icons-material/Calculate';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
@@ -27,6 +35,29 @@ import { projectService, calculationService } from '../services/api';
 import { Project } from '../types';
 import ForestImageryUpload, { ImageryMetadata } from '../components/ForestImageryUpload';
 import ImageUpload from '../components/ImageUpload';
+import ForestAnalysisVisualization from '../components/ForestAnalysisVisualization';
+
+interface CalculationState {
+  selectedImagery: ImageryMetadata | null;
+  selectedProject: Project | null;
+  calculating: boolean;
+  result: any | null;
+  error: string | null;
+  showVisualization: boolean;
+  showForestTypeDialog: boolean;
+  selectedForestType: string | null;
+}
+
+// hey define the forest types available in Vietnam
+const VIETNAMESE_FOREST_TYPES = [
+  { value: 'mangrove', label: 'Mangrove Forest', description: 'Coastal wetland forests, high carbon storage' },
+  { value: 'evergreen_broadleaf', label: 'Evergreen Broadleaf Forest', description: 'Dense tropical rainforest' },
+  { value: 'deciduous_dipterocarp', label: 'Deciduous Dipterocarp Forest', description: 'Seasonal dry forest' },
+  { value: 'bamboo_forest', label: 'Bamboo Forest', description: 'Fast-growing bamboo stands' },
+  { value: 'melaleuca', label: 'Melaleuca Forest', description: 'Wetland forest, paper bark trees' },
+  { value: 'planted_acacia', label: 'Planted Acacia Forest', description: 'Commercial timber plantation' },
+  { value: 'mixed', label: 'Mixed Forest Types', description: 'Let system detect automatically' },
+];
 
 const CarbonCalculation: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -34,7 +65,7 @@ const CarbonCalculation: React.FC = () => {
   const [projectsLoading, setProjectsLoading] = useState(true);
   
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
-  const [calculationResult, setCalculationResult] = useState<number | null>(null);
+  const [calculationResult, setCalculationResult] = useState<any | null>(null);
   const [calculationError, setCalculationError] = useState<string | null>(null);
   const [isCalculating, setIsCalculating] = useState<boolean>(false);
   
@@ -43,6 +74,17 @@ const CarbonCalculation: React.FC = () => {
   const [uploadedImages, setUploadedImages] = useState<File[]>([]);
   const [imageMetadata, setImageMetadata] = useState<ImageryMetadata[]>([]);
   const [calculationMethod, setCalculationMethod] = useState<'project' | 'image'>('project');
+
+  const [state, setState] = useState<CalculationState>({
+    selectedImagery: null,
+    selectedProject: null,
+    calculating: false,
+    result: null,
+    error: null,
+    showVisualization: false,
+    showForestTypeDialog: false,
+    selectedForestType: null,
+  });
 
   useEffect(() => {
     const fetchProjects = async () => {
@@ -110,8 +152,8 @@ const CarbonCalculation: React.FC = () => {
           const calculationParams = {
             metadata: imageMetadata[0],
             analysisType: 'forest_carbon',
-            ecosystem_type: 'tropical_forest', // This could be selected by user
-            scale_factor: 1.0 // Default scale factor
+            ecosystem_type: 'automatic', // Let the system detect automatically
+            scale_factor: imageMetadata[0].resolution || 1.0 // Use resolution from metadata
           };
           
           const calculationResponse = await calculationService.calculateArea(
@@ -119,18 +161,28 @@ const CarbonCalculation: React.FC = () => {
             calculationParams
           );
           
-          // Then calculate carbon credits based on the area
-          const creditResponse = await calculationService.calculateCredits({
-            area_ha: calculationResponse.area_hectares || calculationResponse.area_ha || 100, // Use available field or default
-            ecosystem_type: calculationParams.ecosystem_type,
-            region: 'vietnam',
-            years: 1,
-            leakage_factor: 0.0,
-            uncertainty_factor: 0.15,
-            buffer_percent: 0.15
-          });
-          
-          result = creditResponse.creditable_carbon_credits_tCO2e || creditResponse.total_carbon_stock || 0;
+          // Check if we have the new automatic detection response format
+          if (calculationResponse.forest_regions && calculationResponse.visualization) {
+            // New automatic detection format
+            result = calculationResponse;
+          } else {
+            // Legacy format - calculate carbon credits
+            const creditResponse = await calculationService.calculateCredits({
+              area_ha: calculationResponse.area_hectares || calculationResponse.area_ha || 100,
+              ecosystem_type: 'vietnamese_forest',
+              region: 'vietnam',
+              years: 1,
+              leakage_factor: 0.0,
+              uncertainty_factor: 0.15,
+              buffer_percent: 0.15
+            });
+            
+            result = {
+              legacy: true,
+              credits: creditResponse.creditable_carbon_credits_tCO2e || creditResponse.total_carbon_stock || 0,
+              area: calculationResponse.area_hectares || calculationResponse.area_ha || 100
+            };
+          }
         } else {
           throw new Error('No images available for calculation');
         }
@@ -138,68 +190,142 @@ const CarbonCalculation: React.FC = () => {
       
       setCalculationResult(result);
       setActiveStep(2);
-    } catch (err: any) {
-      // Handle validation errors from backend which return an array of error objects
-      let errorMessage = 'An error occurred during calculation.';
-      
-      if (err.response?.data?.detail) {
-        // If detail is an array of validation errors
-        if (Array.isArray(err.response.data.detail)) {
-          errorMessage = err.response.data.detail
-            .map((error: any) => error.msg || error.message || JSON.stringify(error))
-            .join(', ');
-        } else if (typeof err.response.data.detail === 'object') {
-          // If detail is a single error object
-          errorMessage = err.response.data.detail.msg || 
-                        err.response.data.detail.message || 
-                        JSON.stringify(err.response.data.detail);
-        } else {
-          // If detail is a string
-          errorMessage = err.response.data.detail;
-        }
-      } else if (err.message) {
-        errorMessage = err.message;
-      }
-      
-      setCalculationError(errorMessage);
-      console.error('Calculation error:', err);
+    } catch (error) {
+      setCalculationError('Failed to calculate carbon. Please try again.');
+      console.error('Error calculating carbon:', error);
     } finally {
       setIsCalculating(false);
     }
   };
 
-  const handleReset = () => {
-    setActiveStep(0);
-    setCalculationResult(null);
-    setCalculationError(null);
-    setUploadedImages([]);
-    setImageMetadata([]);
-    setSelectedProjectId('');
+  const handleCalculate = async () => {
+    console.log('handleCalculate called');
+    console.log('uploadedImages:', uploadedImages);
+    console.log('imageMetadata:', imageMetadata);
+    
+    // hey, we need to use the uploaded images and metadata from the main component state
+    if (uploadedImages.length === 0 || imageMetadata.length === 0) {
+      console.log('No images uploaded, setting error');
+      setCalculationError('Please upload at least one image first.');
+      return;
+    }
+
+    console.log('Setting state to show forest type dialog');
+    // Set the selected imagery and project in the state
+    setState(prev => ({ 
+      ...prev, 
+      selectedImagery: imageMetadata[0],
+      selectedProject: projects.find(p => p.id === selectedProjectId) || null,
+      showForestTypeDialog: true 
+    }));
   };
 
-  const steps = [
-    'Choose Calculation Method',
-    calculationMethod === 'project' ? 'Select Project' : 'Upload Images',
-    'Run Calculation',
-    'View Results'
-  ];
+  const handleForestTypeConfirm = async () => {
+    if (uploadedImages.length === 0 || imageMetadata.length === 0) {
+      return;
+    }
+
+    setState(prev => ({ 
+      ...prev, 
+      calculating: true, 
+      error: null,
+      showForestTypeDialog: false 
+    }));
+    setIsCalculating(true);
+    setCalculationError(null);
+
+    try {
+      // hey, use the existing calculateArea endpoint with form data that includes forest type
+      const response = await calculationService.calculateArea(
+        uploadedImages[0],
+        {
+          metadata: imageMetadata[0],
+          analysisType: 'forest_carbon',
+          ecosystem_type: 'tropical_forest',
+          scale_factor: imageMetadata[0]?.resolution || 1.0,
+          forest_type: state.selectedForestType === 'mixed' ? null : state.selectedForestType
+        }
+      );
+
+      // Check if we got the new format response
+      if (response.visualization && (response.total_area_ha !== undefined || response.total_forest_area_ha !== undefined)) {
+        // New format with visualization
+        setState(prev => ({ 
+          ...prev, 
+          result: response,
+          calculating: false 
+        }));
+        setCalculationResult(response);
+        setActiveStep(2);
+      } else if (response.area_hectares || response.area_ha) {
+        // Legacy format - calculate carbon credits
+        const creditResponse = await calculationService.calculateCredits({
+          area_ha: response.area_hectares || response.area_ha || 100,
+          ecosystem_type: 'vietnamese_forest',
+          region: 'vietnam',
+          years: 1,
+          leakage_factor: 0.0,
+          uncertainty_factor: 0.15,
+          buffer_percent: 0.15
+        });
+        
+        const result = {
+          legacy: true,
+          credits: creditResponse.creditable_carbon_credits_tCO2e || creditResponse.total_carbon_stock || 0,
+          area: response.area_hectares || response.area_ha || 100
+        };
+        
+        setState(prev => ({ 
+          ...prev, 
+          result: result,
+          calculating: false 
+        }));
+        setCalculationResult(result);
+        setActiveStep(2);
+      } else {
+        // Unexpected format
+        throw new Error('Unexpected response format from calculation');
+      }
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.detail || 'Failed to calculate carbon credits';
+      setState(prev => ({ 
+        ...prev, 
+        error: errorMsg,
+        calculating: false 
+      }));
+      setCalculationError(errorMsg);
+    } finally {
+      setIsCalculating(false);
+    }
+  };
 
   return (
-    <Container maxWidth="lg">
-      <Paper sx={{ p: 4, mt: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Carbon Stock Calculation
-        </Typography>
-        <Typography paragraph>
-          Calculate carbon stock using either existing project data or by uploading new forest imagery for analysis.
-        </Typography>
-
-        <Stepper activeStep={activeStep} orientation="vertical" sx={{ mt: 3 }}>
-          {/* Step 0: Choose Method */}
+    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Typography variant="h4" gutterBottom>
+        Carbon Calculation
+      </Typography>
+      
+      <Box sx={{ width: '100%' }}>
+        <Stepper activeStep={activeStep} orientation="vertical">
+          {/* Step 0: Choose Calculation Method */}
           <Step>
-            <StepLabel>Choose Calculation Method</StepLabel>
+            <StepLabel
+              optional={
+                activeStep > 0 && (
+                  <Typography variant="caption">
+                    {calculationMethod === 'project' ? 'Project-Based' : 'Image-Based'}
+                  </Typography>
+                )
+              }
+            >
+              Choose Calculation Method
+            </StepLabel>
             <StepContent>
-              <Grid container spacing={3}>
+              <Typography variant="body2" color="text.secondary" paragraph>
+                Select whether you want to calculate carbon based on an existing project or by uploading new imagery.
+              </Typography>
+              
+              <Grid container spacing={2}>
                 <Grid item xs={12} md={6}>
                   <Card 
                     sx={{ 
@@ -215,7 +341,7 @@ const CarbonCalculation: React.FC = () => {
                         <Typography variant="h6">Project-Based</Typography>
                       </Box>
                       <Typography variant="body2" color="text.secondary">
-                        Calculate carbon stock for an existing project using predefined ecosystem parameters and area data.
+                        Calculate carbon for an existing project in your account.
                       </Typography>
                     </CardContent>
                   </Card>
@@ -237,6 +363,7 @@ const CarbonCalculation: React.FC = () => {
                       </Box>
                       <Typography variant="body2" color="text.secondary">
                         Upload satellite imagery or aerial photos to analyze forest area and calculate carbon stock.
+                        The system will automatically detect forest types and calculate carbon content.
                       </Typography>
                     </CardContent>
                   </Card>
@@ -257,31 +384,46 @@ const CarbonCalculation: React.FC = () => {
 
           {/* Step 1: Project Selection or Image Upload */}
           <Step>
-            <StepLabel>
-              {calculationMethod === 'project' ? 'Select Project' : 'Upload Images'}
+            <StepLabel
+              optional={
+                activeStep > 1 && (
+                  <Typography variant="caption">
+                    {calculationMethod === 'project' 
+                      ? (selectedProjectId ? 'Project selected' : 'No project')
+                      : `${uploadedImages.length} image(s) uploaded`}
+                  </Typography>
+                )
+              }
+            >
+              {calculationMethod === 'project' ? 'Select Project' : 'Upload Forest Imagery'}
             </StepLabel>
             <StepContent>
               {calculationMethod === 'project' ? (
                 <Box>
-                  <FormControl fullWidth sx={{ mb: 3 }}>
-                    <InputLabel id="project-select-label">Select Project</InputLabel>
-                    <Select
-                      labelId="project-select-label"
-                      id="project-select"
-                      value={selectedProjectId}
-                      label="Select Project"
-                      onChange={handleProjectChange}
-                      disabled={projectsLoading || !projects}
-                    >
-                      {projectsLoading && <MenuItem value=""><em>Loading projects...</em></MenuItem>}
-                      {projectsError && <MenuItem value=""><em>Error loading projects</em></MenuItem>}
-                      {projects && projects.map((project: Project) => (
-                        <MenuItem key={project.id} value={project.id}>
-                          {project.name} ({project.project_type})
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                  <Typography variant="body2" color="text.secondary" paragraph>
+                    Select a project from your account to calculate its carbon credits.
+                  </Typography>
+                  
+                  {projectsLoading ? (
+                    <CircularProgress />
+                  ) : projectsError ? (
+                    <Alert severity="error">{projectsError}</Alert>
+                  ) : (
+                    <FormControl fullWidth sx={{ mt: 2 }}>
+                      <InputLabel>Select a Project</InputLabel>
+                      <Select
+                        value={selectedProjectId}
+                        label="Select a Project"
+                        onChange={handleProjectChange}
+                      >
+                        {projects.map((project) => (
+                          <MenuItem key={project.id} value={project.id}>
+                            {project.name}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  )}
                   
                   <Box sx={{ mt: 2 }}>
                     <Button onClick={() => setActiveStep(0)} sx={{ mr: 1 }}>
@@ -298,6 +440,18 @@ const CarbonCalculation: React.FC = () => {
                 </Box>
               ) : (
                 <Box>
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    <Typography variant="body2">
+                      <strong>Automatic Detection Enabled:</strong> Our AI will automatically:
+                      <ul style={{ margin: '8px 0' }}>
+                        <li>Identify the type of imagery (RGB, false color, NDVI, etc.)</li>
+                        <li>Detect Vietnamese forest types (evergreen, mangrove, bamboo, etc.)</li>
+                        <li>Generate bounding boxes around forest regions</li>
+                        <li>Calculate carbon density for each detected region</li>
+                      </ul>
+                    </Typography>
+                  </Alert>
+                  
                   <ForestImageryUpload
                     onImagesUploaded={handleImagesUploaded}
                     disabled={false}
@@ -328,125 +482,144 @@ const CarbonCalculation: React.FC = () => {
 
           {/* Step 2: Run Calculation */}
           <Step>
-            <StepLabel>Run Calculation</StepLabel>
+            <StepLabel>
+              Calculate Carbon Credits
+            </StepLabel>
             <StepContent>
-              <Box>
-                <Typography variant="body1" gutterBottom>
-                  {calculationMethod === 'project' 
-                    ? `Ready to calculate carbon stock for project: ${projects.find(p => p.id === selectedProjectId)?.name}`
-                    : `Ready to analyze ${uploadedImages.length} uploaded image(s) and calculate carbon stock.`
-                  }
-                </Typography>
-                
-                <Box sx={{ display: 'flex', justifyContent: 'center', my: 3 }}>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    size="large"
-                    startIcon={<CalculateIcon />}
-                    onClick={handleCalculateCarbon}
-                    disabled={isCalculating}
-                  >
-                    {isCalculating ? 'Calculating...' : 'Run Calculation'}
-                    {isCalculating && <CircularProgress size={24} sx={{ position: 'absolute', top: '50%', left: '50%', marginTop: '-12px', marginLeft: '-12px' }} />}
-                  </Button>
-                </Box>
-                
-                {calculationError && (
-                  <Alert severity="error" sx={{ mt: 2 }}>
-                    {calculationError}
-                  </Alert>
-                )}
-                
-                <Box sx={{ mt: 2 }}>
+              <Typography variant="body2" color="text.secondary" paragraph>
+                Click the button below to run the carbon calculation based on your selection.
+                {calculationMethod === 'image' && ' The system will automatically analyze your imagery and detect forest regions.'}
+              </Typography>
+              
+              {calculationError && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  {calculationError}
+                </Alert>
+              )}
+              
+              {!calculationResult && (
+                <Box>
                   <Button onClick={() => setActiveStep(1)} sx={{ mr: 1 }}>
                     Back
                   </Button>
+                  <Button
+                    variant="contained"
+                    startIcon={isCalculating ? <CircularProgress size={20} /> : <CalculateIcon />}
+                    onClick={() => {
+                      console.log('Calculate button clicked');
+                      console.log('Calculation method:', calculationMethod);
+                      console.log('Uploaded images:', uploadedImages.length);
+                      console.log('Image metadata:', imageMetadata);
+                      if (calculationMethod === 'project') {
+                        handleCalculateCarbon();
+                      } else {
+                        handleCalculate();
+                      }
+                    }}
+                    disabled={isCalculating}
+                  >
+                    {isCalculating ? 'Analyzing...' : 'Calculate Carbon'}
+                  </Button>
                 </Box>
-              </Box>
-            </StepContent>
-          </Step>
-
-          {/* Step 3: Results */}
-          <Step>
-            <StepLabel>View Results</StepLabel>
-            <StepContent>
-              {calculationResult !== null && (
-                <Box>
-                  <Card sx={{ mt: 3, backgroundColor: 'success.light', color: 'success.contrastText' }}>
-                    <CardContent>
-                      <Typography variant="h6" component="h3" gutterBottom>
-                        Calculation Complete
-                      </Typography>
-                      <Typography variant="h3" component="p" sx={{ fontWeight: 'bold', my: 2 }}>
-                        {calculationResult.toFixed(2)}
-                      </Typography>
-                      <Typography variant="h6">
-                        Metric Tons of CO2 equivalent (tCO2e)
-                      </Typography>
-                      
-                      <Divider sx={{ my: 2, backgroundColor: 'success.contrastText' }} />
-                      
-                      <Grid container spacing={2}>
-                        <Grid item xs={12} md={6}>
-                          <Typography variant="body2">
-                            <strong>Calculation Method:</strong> {calculationMethod === 'project' ? 'Project-Based' : 'Image Analysis'}
-                          </Typography>
-                        </Grid>
-                        {calculationMethod === 'project' && (
-                          <Grid item xs={12} md={6}>
-                            <Typography variant="body2">
-                              <strong>Project:</strong> {projects.find(p => p.id === selectedProjectId)?.name}
-                            </Typography>
-                          </Grid>
-                        )}
-                        {calculationMethod === 'image' && (
-                          <>
-                            <Grid item xs={12} md={6}>
-                              <Typography variant="body2">
-                                <strong>Images Analyzed:</strong> {uploadedImages.length}
-                              </Typography>
-                            </Grid>
-                            <Grid item xs={12} md={6}>
-                              <Typography variant="body2">
-                                <strong>Primary Satellite:</strong> {imageMetadata[0]?.satellite || 'N/A'}
-                              </Typography>
-                            </Grid>
-                          </>
-                        )}
-                        <Grid item xs={12}>
-                          <Typography variant="body2">
-                            <strong>Calculated on:</strong> {new Date().toLocaleString()}
-                          </Typography>
-                        </Grid>
-                      </Grid>
-                    </CardContent>
-                  </Card>
+              )}
+              
+              {calculationResult && calculationMethod === 'image' && !calculationResult.legacy && (
+                <ForestAnalysisVisualization 
+                  analysisResult={calculationResult}
+                  projectName={uploadedImages[0]?.name}
+                  onClose={() => {
+                    setCalculationResult(null);
+                    setActiveStep(0);
+                    setUploadedImages([]);
+                    setImageMetadata([]);
+                  }}
+                />
+              )}
+              
+              {calculationResult && (calculationMethod === 'project' || calculationResult.legacy) && (
+                <Paper sx={{ p: 3, mt: 2, backgroundColor: '#f5f5f5' }}>
+                  <Typography variant="h6" gutterBottom>
+                    Calculation Result
+                  </Typography>
+                  <Typography variant="h4" color="primary" gutterBottom>
+                    {typeof calculationResult === 'number' 
+                      ? calculationResult.toFixed(2)
+                      : calculationResult.credits?.toFixed(2) || '0'} tCO₂e
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Total Carbon Credits
+                  </Typography>
+                  {calculationResult.area && (
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                      Forest Area: {calculationResult.area.toFixed(2)} hectares
+                    </Typography>
+                  )}
                   
                   <Box sx={{ mt: 3 }}>
-                    <Button 
-                      variant="outlined" 
-                      onClick={handleReset}
-                      sx={{ mr: 2 }}
-                    >
-                      Start New Calculation
-                    </Button>
-                    <Button 
-                      variant="contained"
+                    <Button
+                      variant="outlined"
                       onClick={() => {
-                        // In a real app, this would export or save the results
-                        alert('Export functionality would be implemented here');
+                        setCalculationResult(null);
+                        setActiveStep(0);
                       }}
                     >
-                      Export Results
+                      Calculate Another
                     </Button>
                   </Box>
-                </Box>
+                </Paper>
               )}
             </StepContent>
           </Step>
         </Stepper>
-      </Paper>
+      </Box>
+
+      {/* Forest Type Selection Dialog */}
+      <Dialog 
+        open={state.showForestTypeDialog} 
+        onClose={() => setState(prev => ({ ...prev, showForestTypeDialog: false }))}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Select Forest Type</DialogTitle>
+        <DialogContent>
+          <FormLabel component="legend">Forest Type</FormLabel>
+          <RadioGroup
+            value={state.selectedForestType || 'mixed'}
+            onChange={(e) => setState(prev => ({ ...prev, selectedForestType: e.target.value }))}
+          >
+            {VIETNAMESE_FOREST_TYPES.map((type) => (
+              <FormControlLabel
+                key={type.value}
+                value={type.value}
+                control={<Radio />}
+                label={
+                  <Box>
+                    <Typography variant="body1">{type.label}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {type.description}
+                    </Typography>
+                  </Box>
+                }
+                sx={{ mb: 1 }}
+              />
+            ))}
+          </RadioGroup>
+        </DialogContent>
+        <DialogActions>
+          <Button 
+            onClick={() => setState(prev => ({ ...prev, showForestTypeDialog: false }))}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleForestTypeConfirm} 
+            variant="contained"
+            disabled={!state.selectedForestType}
+          >
+            Calculate
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 };

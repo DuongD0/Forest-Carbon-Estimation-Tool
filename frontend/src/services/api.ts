@@ -191,10 +191,18 @@ export const calculationService = {
     const formData = new FormData();
     formData.append('image', imageFile);
     formData.append('params', JSON.stringify(params));
-    const response = await apiClient.post('/calculate/area', formData, {
+    const response = await apiClient.post('/calculate/area/form', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
       }
+    });
+    return response.data;
+  },
+  calculateAreaWithForestType: async (imageryId: number, projectId: number, forestType: string | null) => {
+    const response = await apiClient.post('/calculate/area', {
+      imagery_id: imageryId,
+      project_id: projectId,
+      forest_type: forestType
     });
     return response.data;
   },

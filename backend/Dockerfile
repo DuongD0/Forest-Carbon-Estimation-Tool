@@ -1,40 +1,55 @@
-# Use an official Python runtime as a parent image
-FROM python:3.11-slim
+# Use PyTorch base image with CUDA support for AI models
+FROM pytorch/pytorch:2.1.0-cuda12.1-cudnn8-runtime
 
-# Set the working directory in the container
-WORKDIR /app
-
-# Install system dependencies required for geospatial libraries and OpenCV
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
     build-essential \
-    libgdal-dev \
+    curl \
     gdal-bin \
+    libgdal-dev \
     python3-gdal \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
-    libgomp1 \
+    libpq-dev \
+    libgeos-dev \
+    libproj-dev \
+    libspatialindex-dev \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the requirements file into the container at /app
-COPY ./requirements.txt /app/requirements.txt
+# Set environment variables for GDAL
+ENV GDAL_CONFIG=/usr/bin/gdal-config
+ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
+ENV C_INCLUDE_PATH=/usr/include/gdal
 
-# Install any needed packages specified in requirements.txt
+# Set working directory
+WORKDIR /app
+
+# Copy requirements first for better caching
+COPY requirements.txt .
+
+# Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the backend application code into the container at /app
-COPY . /app
+# Install additional AI dependencies that might have conflicts
+RUN pip install --no-cache-dir \
+    'accelerate>=0.24.0' \
+    'huggingface-hub>=0.19.0' \
+    'safetensors>=0.4.0'
 
-# Make port 8000 available to the world outside this container
+# Copy the rest of the application
+COPY . .
+
+# Create directories for model caching
+RUN mkdir -p /app/models /app/cache
+
+# Set environment variables for model caching
+ENV TRANSFORMERS_CACHE=/app/cache
+ENV HF_HOME=/app/cache
+ENV TORCH_HOME=/app/models
+
+# Expose port
 EXPOSE 8000
 
-# Define environment variable
-ENV NAME World
-
-# Run main.py when the container launches
-# The command will be overridden by docker-compose.yml for development (using --reload)
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the application
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
 

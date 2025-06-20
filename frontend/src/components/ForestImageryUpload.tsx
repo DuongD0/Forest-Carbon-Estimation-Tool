@@ -120,26 +120,26 @@ const ForestImageryUpload: React.FC<ForestImageryUploadProps> = ({
   const handleFilesSelected = useCallback((files: File[]) => {
     setUploadedFiles(files);
     
-    // Initialize metadata for each file
-    const initialMetadata: ImageryMetadata[] = files.map(() => ({
-      satellite: '',
-      captureDate: '',
-      resolution: 30,
-      bands: [],
+    // Initialize metadata with automatic defaults - no manual selection needed
+    const autoMetadata: ImageryMetadata[] = files.map(() => ({
+      satellite: 'automatic',  // Will be detected by AI
+      captureDate: new Date().toISOString().split('T')[0],  // Today's date as default
+      resolution: 1.0,  // Will be refined by the analysis
+      bands: ['automatic'],  // AI will detect the actual bands
       cloudCover: 0,
       coordinates: null,
       boundingBox: null,
       projection: 'WGS84 (EPSG:4326)',
-      notes: ''
+      notes: 'Automatically processed - AI will detect imagery type and bands'
     }));
     
-    setMetadataList(initialMetadata);
+    setMetadataList(autoMetadata);
     
-    if (files.length > 0) {
-      setCurrentFileIndex(0);
-      setShowMetadataDialog(true);
-    }
-  }, []);
+    // Skip the metadata dialog and directly upload
+    onImagesUploaded(files, autoMetadata);
+    setUploadedFiles([]);
+    setMetadataList([]);
+  }, [onImagesUploaded]);
 
   const handleMetadataChange = (field: keyof ImageryMetadata, value: any) => {
     setBulkMetadata(prev => ({
@@ -260,11 +260,18 @@ const ForestImageryUpload: React.FC<ForestImageryUploadProps> = ({
         Forest Imagery Upload
       </Typography>
       
-      <Alert severity="info" sx={{ mb: 2 }}>
+      <Alert severity="success" sx={{ mb: 2 }}>
         <Typography variant="body2">
           Upload satellite imagery, aerial photos, or drone images of forest areas. 
-          Supported formats include GeoTIFF, JPEG, PNG, and other common image formats.
-          Metadata will be collected to ensure proper analysis and carbon calculation.
+          <strong> Our AI will automatically detect forest types and calculate carbon content.</strong>
+          <br />
+          <strong>✓ No manual configuration needed</strong> - The system will automatically:
+          <ul style={{ margin: '4px 0', paddingLeft: '20px' }}>
+            <li>Detect imagery type and spectral bands</li>
+            <li>Identify forest regions and types</li>
+            <li>Calculate carbon content</li>
+          </ul>
+          Supported formats: GeoTIFF, JPEG, PNG, and other common image formats.
         </Typography>
       </Alert>
 
@@ -278,7 +285,7 @@ const ForestImageryUpload: React.FC<ForestImageryUploadProps> = ({
           'image/gif', 'image/webp', 'image/bmp'
         ]}
         title="Upload Forest Imagery"
-        description="Drag and drop satellite images, aerial photos, or drone imagery here"
+        description="Drag and drop satellite images, aerial photos, or drone imagery here. The system will automatically detect forest types."
         disabled={disabled}
         showPreview={true}
         multiple={true}
